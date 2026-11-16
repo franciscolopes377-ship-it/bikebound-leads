@@ -71,7 +71,7 @@ r = await post('/api/mensagens', { canal: 'olx', nome: 'Preço', texto: 'TESTE_P
 r = await j('/api/leads/' + r.b.lead_id); assert.match(r.b.mensagens.find(m => m.estado === 'rascunho').aviso, /não corresponde/); ok('rascunho com preço fora do stock fica com aviso');
 assert.equal(avisosRascunho('Fica por 9.990 €. Veja https://olx.pt/a.'), null);
 assert.match(avisosRascunho('Fica por 9 500 euros'), /9 500 euros/); assert.match(avisosRascunho('Veja https://burla.example/x'), /burla\.example/);
-assert.match(avisosRascunho('São 150 €/mês'), /150 €/); assert.equal(precoNorm('7900.00'), '7900'); assert.equal(precoNorm('7 900,50 €'), '7900'); ok('verificação de preços e links');
+assert.match(avisosRascunho('São 150 €/mês'), /150 €/); assert.equal(precoNorm('7900.00'), '7900'); assert.equal(precoNorm('7900.5'), '7900'); assert.equal(precoNorm('7.900'), '7900'); assert.equal(precoNorm('12.500,00 €'), '12500'); assert.equal(precoNorm('7 900,50 €'), '7900'); ok('verificação de preços e links');
 
 // editar / aprovar / descartar
 r = await post(`/api/mensagens/${rasc.id}/estado`, { estado: 'enviada', texto: 'Boa tarde, pode vir sábado às 10h?\nMelhores cumprimentos, Francisco Canelas, 927887107, BIKEBOUND' }); assert.equal(r.s, 200);
@@ -177,6 +177,11 @@ bbMotas = []; r = await j('/api/sync', { method: 'POST' }); assert.equal(r.s, 50
 process.env.BIKEBOUND_STOCK_TOKEN = 'errado'; bbMotas = [{ matricula: 'AA-11-BB' }]; r = await j('/api/sync', { method: 'POST' }); assert.equal(r.s, 502); assert.equal((await j('/api/stock')).b.length, 3); assert.match((await j('/api/sync')).b.erro, /401/); ok('token errado: mantém o stock e mostra o erro');
 process.env.BIKEBOUND_STOCK_TOKEN = 'token-bb'; bbMotas = [{ matricula: 'AA-11-BB', marca: 'Yamaha', modelo: 'MT-07', quilometragem: 18000, data_matricula: '2021-03-15' }];
 r = await j('/api/sync', { method: 'POST' }); assert.equal((await j('/api/stock')).b.length, 1); ok('mota vendida desaparece do stock na sincronização');
+bbMotas = [{ matricula: 'AA-11-BB', marca: 'Yamaha', modelo: 'MT-07', preco_anunciado: 8500, link_anuncio: 'https://olx.pt/novo' }, { matricula: 'GG-44-HH', marca: 'KTM', modelo: 'Duke', preco_anunciado: 0, link_anuncio: 'javascript:alert(1)' }, { matricula: 'II-55-JJ', marca: 'Kawasaki', modelo: 'Z900', preco_anunciado: 9250.5, link_anuncio: null }];
+await j('/api/sync', { method: 'POST' }); r = await j('/api/stock');
+const s1 = r.b.find(m => m.matricula === 'AA-11-BB'); assert.equal(s1.preco, '8500'); assert.equal(s1.link, 'https://olx.pt/novo'); assert.equal(s1.sem_preco, false);
+const s2 = r.b.find(m => m.matricula === 'GG-44-HH'); assert.equal(s2.preco, ''); assert.equal(s2.link, ''); assert.equal(s2.sem_preco, true); assert.equal(r.b.find(m => m.matricula === 'II-55-JJ').preco, '9250,50');
+assert.equal(avisosRascunho('Fica por 8.500 €, veja https://olx.pt/novo'), null); assert.equal(avisosRascunho('A Z900 fica por 9.250 €'), null); assert.match(avisosRascunho('Fica por 7.900 €'), /7\.900/); ok('preço e link da BikeBound têm prioridade sobre o CSV; valores inválidos ignorados');
 bb.close();
 
 // ---------- apagar e cópia de segurança ----------

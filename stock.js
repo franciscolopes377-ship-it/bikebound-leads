@@ -110,11 +110,11 @@ export function getStock() {
       km: m.km != null ? String(m.km) : '',
       cor: m.cor || '',
       cilindrada: m.cilindrada || '',
-      preco: p.preco || '',
+      preco: m.preco || p.preco || '',
       estado: p.estado || '',
-      link: p.link || '',
+      link: m.link || p.link || '',
       fonte: 'bikebound',
-      sem_preco: !p.preco
+      sem_preco: !(m.preco || p.preco)
     };
   });
 }

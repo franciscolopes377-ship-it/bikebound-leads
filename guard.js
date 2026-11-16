@@ -3,7 +3,7 @@ import { getStock } from './stock.js';
 // Só os dígitos da parte inteira: "7.900 €", "7 900" e "7900,00" → "7900".
 export function precoNorm(p) {
   let s = String(p || '').trim();
-  if (/\.\d{2}$/.test(s) && !s.includes(',')) s = s.replace(/\.(\d{2})$/, ',$1');
+  if (/^\d+\.\d{1,2}$/.test(s)) s = s.replace('.', ','); // "7900.5" é decimal; "7.900" é milhar
   return s.replace(/[^\d,]/g, '').split(',')[0].replace(/^0+/, '');
 }
 

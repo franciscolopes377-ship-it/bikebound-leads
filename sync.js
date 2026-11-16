@@ -31,11 +31,13 @@ export async function syncStock({ fetchImpl = fetch } = {}) {
     db.exec('BEGIN');
     try {
       db.exec('DELETE FROM stock_sync');
-      const ins = db.prepare('INSERT OR REPLACE INTO stock_sync (matricula, marca, modelo, versao, cilindrada, cor, km, data_matricula, ano, dias_em_stock) VALUES (?,?,?,?,?,?,?,?,?,?)');
+      const ins = db.prepare('INSERT OR REPLACE INTO stock_sync (matricula, marca, modelo, versao, cilindrada, cor, km, data_matricula, ano, dias_em_stock, preco, link) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
+      const preco = m => { const v = m.preco_anunciado ?? m.preco_venda ?? null; const n = Number(v); if (v == null || v === '' || !Number.isFinite(n) || n <= 0) return null; return Number.isInteger(n) ? String(n) : n.toFixed(2).replace('.', ','); };
+      const link = m => (typeof m.link_anuncio === 'string' && /^https:\/\//.test(m.link_anuncio.trim()) ? m.link_anuncio.trim() : null);
       for (const m of data.motas) {
         if (!m.matricula) continue;
         ins.run(m.matricula, m.marca ?? null, m.modelo ?? null, m.versao ?? null, m.cilindrada ?? null, m.cor ?? null,
-          m.quilometragem ?? null, m.data_matricula ?? null, m.ano ?? null, m.dias_em_stock ?? null);
+          m.quilometragem ?? null, m.data_matricula ?? null, m.ano ?? null, m.dias_em_stock ?? null, preco(m), link(m));
       }
       db.exec('COMMIT');
     } catch (e) { db.exec('ROLLBACK'); throw e; }
