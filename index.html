@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BikeBound Leads</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--ink:#1b1b1a;--mut:#6b6b66;--line:#e3e3df;--acc:#c8341b;--acc-ink:#fff;--ok:#1f7a4d;--warm:#b8650a;--cold:#3b6ea5}
+@media (prefers-color-scheme:dark){:root{--bg:#121211;--card:#1c1c1a;--ink:#f0efea;--mut:#9a9992;--line:#2d2d2a;--acc:#e5533a;--ok:#4cc38a;--warm:#f0a04b;--cold:#7fb0e6}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px;z-index:5}
+h1{font-size:17px;margin:0 0 8px}
+nav{display:flex;gap:6px;flex-wrap:wrap}
+button,select,textarea,input{font:inherit;color:inherit}
+.tab,.chip{border:1px solid var(--line);background:var(--card);padding:6px 12px;border-radius:999px;cursor:pointer}
+.tab.on,.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+main{max-width:820px;margin:0 auto;padding:12px 16px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sp{flex:1}
+.lead{cursor:pointer}
+.lead:hover{border-color:var(--mut)}
+.tag{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.quente{color:var(--acc)}.morno{color:var(--warm)}.frio{color:var(--cold)}.retoma{color:var(--ok)}
+.mut{color:var(--mut)}.small{font-size:13px}
+.msg{padding:8px 12px;border-radius:12px;margin:6px 0;max-width:88%;white-space:pre-wrap;word-wrap:break-word}
+.in{background:var(--bg);border:1px solid var(--line)}
+.out{background:var(--ink);color:var(--bg);margin-left:auto}
+.draft{border:2px dashed var(--acc);background:var(--card);color:var(--ink);margin-left:0;max-width:100%}
+textarea{width:100%;min-height:110px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+input,select{padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);width:100%}
+label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
+.btn{border:0;background:var(--acc);color:var(--acc-ink);padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+.btn.sec{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:400}
+.alert{background:var(--acc);color:var(--acc-ink);padding:8px 12px;border-radius:8px;margin:8px 0}
+.err{color:var(--acc)}
+.hide{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>BikeBound · Leads</h1>
+  <nav>
+    <button class="tab on" data-v="leads">Leads</button>
+    <button class="tab" data-v="nova">Nova mensagem</button>
+    <button class="tab" data-v="stock">Stock</button>
+  </nav>
+</header>
+<main>
+  <section id="v-leads">
+    <div class="row" id="filtros"></div>
+    <div id="lista"></div>
+    <div id="ficha" class="hide"></div>
+  </section>
+
+  <section id="v-nova" class="hide">
+    <div class="card">
+      <p class="mut small">Cola a mensagem do cliente (OLX, ou WhatsApp enquanto a ligação automática não está ativa). O assistente prepara um rascunho; nada é enviado.</p>
+      <label>Canal</label>
+      <select id="n-canal"><option value="olx">OLX</option><option value="whatsapp">WhatsApp</option></select>
+      <label>Nome do cliente</label><input id="n-nome" placeholder="Como aparece no chat">
+      <label>Telefone (opcional)</label><input id="n-tel" inputmode="tel">
+      <label>Mensagem do cliente</label><textarea id="n-texto"></textarea>
+      <div class="row" style="margin-top:10px"><button class="btn" id="n-ok">Gerar rascunho</button><span id="n-msg" class="small mut"></span></div>
+    </div>
+  </section>
+
+  <section id="v-stock" class="hide">
+    <div class="card">
+      <p class="small mut">Carrega um CSV com as colunas: modelo, mes_ano, km, preco, estado, link. Substitui o stock anterior.</p>
+      <input type="file" id="s-file" accept=".csv,text/csv">
+      <div class="row" style="margin-top:10px"><button class="btn" id="s-ok">Carregar stock</button><span id="s-msg" class="small mut"></span></div>
+    </div>
+    <div id="s-lista"></div>
+  </section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+const api=async(u,o={})=>{const r=await fetch(u,o);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.erro||r.status);return j};
+let filtro='',atual=null;
+
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));
+  ['leads','nova','stock'].forEach(v=>$('#v-'+v).classList.toggle('hide',v!==b.dataset.v));
+  if(b.dataset.v==='leads')voltar(); if(b.dataset.v==='stock')carregaStock();
+});
+
+function filtros(){
+  const f=$('#filtros');f.replaceChildren();
+  [['','Todas'],['quente','Quentes'],['morno','Mornas'],['frio','Frias'],['retoma','Retomas']].forEach(([v,t])=>{
+    const b=el('button','chip'+(filtro===v?' on':''),t);b.onclick=()=>{filtro=v;voltar()};f.append(b)});
+}
+async function voltar(){
+  atual=null;$('#ficha').classList.add('hide');$('#lista').classList.remove('hide');$('#filtros').classList.remove('hide');
+  filtros();const l=$('#lista');l.replaceChildren();
+  const rows=await api('/api/leads'+(filtro?'?classificacao='+filtro:''));
+  if(!rows.length)l.append(el('p','mut','Ainda sem leads.'));
+  rows.forEach(r=>{
+    const c=el('div','card lead');
+    const top=el('div','row');
+    top.append(el('strong','',r.nome||r.telefone||('Cliente #'+r.id)),el('span','tag '+r.classificacao,r.classificacao),el('span','tag mut',r.canal));
+    if(r.alertar)top.append(el('span','tag quente','⚠ avisar equipa'));
+    if(r.rascunhos)top.append(el('span','tag','✎ '+r.rascunhos+' rascunho'));
+    c.append(top);
+    if(r.resumo_equipa)c.append(el('div','small',r.resumo_equipa));
+    c.append(el('div','small mut',(r.mota_interesse?r.mota_interesse+' · ':'')+'estado: '+r.estado));
+    c.onclick=()=>abre(r.id);l.append(c)});
+}
+async function abre(id){
+  atual=id;const {lead,mensagens}=await api('/api/leads/'+id);
+  $('#lista').classList.add('hide');$('#filtros').classList.add('hide');
+  const f=$('#ficha');f.classList.remove('hide');f.replaceChildren();
+  const back=el('button','btn sec','← Voltar');back.onclick=voltar;f.append(back);
+  const h=el('div','card');
+  const top=el('div','row');top.append(el('strong','',lead.nome||'Sem nome'),el('span','tag '+lead.classificacao,lead.classificacao),el('span','tag mut',lead.canal));
+  h.append(top);
+  [['Telefone',lead.telefone],['Mota',lead.mota_interesse],['Quer ver',lead.quando_quer_ver],['Retoma',lead.retoma?'sim':null],['Financiamento',lead.financiamento?'sim':null]]
+    .filter(x=>x[1]).forEach(([k,v])=>h.append(el('div','small',k+': '+v)));
+  if(lead.alertar){const a=el('div','alert','⚠ '+(lead.resumo_equipa||'Avisar equipa'));const ok=el('button','btn sec','Já tratado');ok.style.marginLeft='8px';ok.onclick=async()=>{await api('/api/leads/'+id,{method:'PATCH',body:JSON.stringify({alertar:false})});abre(id)};a.append(ok);h.append(a)}
+  const sel=el('select');['novo','em_curso','visita_marcada','vendida','perdida'].forEach(s=>{const o=el('option','',s.replace('_',' '));o.value=s;if(s===lead.estado)o.selected=true;sel.append(o)});
+  sel.onchange=()=>api('/api/leads/'+id,{method:'PATCH',body:JSON.stringify({estado:sel.value})});
+  h.append(el('label','','Estado'),sel);f.append(h);
+  const t=el('div','card');
+  mensagens.forEach(m=>{
+    if(m.estado==='descartada')return;
+    if(m.estado==='rascunho'){
+      const box=el('div','msg draft');box.append(el('div','small mut','Rascunho — não enviado'));
+      const ta=el('textarea');ta.value=m.texto;box.append(ta);
+      const r=el('div','row');r.style.marginTop='8px';
+      const cp=el('button','btn','Copiar');cp.onclick=async()=>{try{await navigator.clipboard.writeText(ta.value);cp.textContent='Copiado ✓'}catch{ta.select();document.execCommand('copy');cp.textContent='Copiado ✓'}};
+      const en=el('button','btn sec','Marcar como enviada');en.onclick=async()=>{await api(`/api/mensagens/${m.id}/estado`,{method:'POST',body:JSON.stringify({estado:'enviada',texto:ta.value})});abre(id)};
+      const de=el('button','btn sec','Descartar');de.onclick=async()=>{await api(`/api/mensagens/${m.id}/estado`,{method:'POST',body:JSON.stringify({estado:'descartada'})});abre(id)};
+      r.append(cp,en,de);box.append(r);t.append(box);return}
+    t.append(el('div','msg '+(m.direcao==='inbound'?'in':'out'),m.texto));
+  });
+  f.append(t);
+  const n=el('div','card');n.append(el('label','','Nova mensagem do cliente nesta conversa'));
+  const ta=el('textarea');const go=el('button','btn','Gerar rascunho');go.style.marginTop='8px';
+  go.onclick=async()=>{if(!ta.value.trim())return;go.disabled=true;go.textContent='A preparar…';
+    try{const r=await api('/api/mensagens',{method:'POST',body:JSON.stringify({canal:lead.canal,lead_id:id,texto:ta.value})});if(r.erro)alert(r.erro)}catch(e){alert(e.message)}abre(id)};
+  n.append(ta,go);f.append(n);
+}
+$('#n-ok').onclick=async()=>{
+  const b=$('#n-ok'),m=$('#n-msg');if(!$('#n-texto').value.trim()){m.textContent='Cola a mensagem.';return}
+  b.disabled=true;m.textContent='A preparar…';
+  try{const r=await api('/api/mensagens',{method:'POST',body:JSON.stringify({canal:$('#n-canal').value,nome:$('#n-nome').value.trim()||null,telefone:$('#n-tel').value.trim()||null,texto:$('#n-texto').value})});
+    if(r.erro){m.textContent='Erro: '+r.erro;m.className='small err';b.disabled=false;return}
+    $('#n-texto').value='';m.textContent='';b.disabled=false;
+    document.querySelector('[data-v=leads]').click();abre(r.lead_id)}
+  catch(e){m.textContent='Erro: '+e.message;m.className='small err';b.disabled=false}
+};
+async function carregaStock(){
+  const l=$('#s-lista');l.replaceChildren();const rows=await api('/api/stock');
+  l.append(el('p','small mut',rows.length+' motas no stock'));
+  rows.forEach(r=>l.append(el('div','card small',[r.modelo,r.mes_ano,r.km&&r.km+' km',r.preco&&r.preco+' €',r.estado].filter(Boolean).join(' · '))));
+}
+$('#s-ok').onclick=async()=>{
+  const f=$('#s-file').files[0],m=$('#s-msg');if(!f){m.textContent='Escolhe um ficheiro.';return}
+  try{const r=await api('/api/stock',{method:'POST',body:await f.text()});m.textContent=r.importadas+' motas carregadas ✓';m.className='small mut';carregaStock()}
+  catch(e){m.textContent='Erro: '+e.message;m.className='small err'}
+};
+voltar();
+</script>
+</body>
+</html>
