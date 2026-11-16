@@ -11,6 +11,8 @@ Assistente de leads do stand: recebe mensagens (OLX e WhatsApp), prepara um rasc
 - Cada rascunho é verificado: preços e links que não constem do stock ficam com aviso.
 - Retomas: pede os dados da mota do cliente, nunca dá valor, e avisa a equipa.
 - Cópia de segurança de leads e conversas (separador "Instruções").
+- Importação de conversas já existentes (separador "Instruções" ou `POST /api/importar`): só regista o histórico, sem rascunhos, e pode repetir-se sem duplicar.
+- Filtro de leads por mota, com o número de interessados em cada uma.
 - WhatsApp: endpoint `/webhook/whatsapp` pronto para a API oficial da Meta (só aceita mensagens assinadas).
 
 ## Variáveis (Railway → Variables)

@@ -51,11 +51,14 @@ addCol('mensagens', 'externo_id', 'TEXT');      // id da mensagem no WhatsApp (e
 addCol('mensagens', 'aviso', 'TEXT');           // avisos automáticos sobre o rascunho
 addCol('mensagens', 'texto_original', 'TEXT');  // rascunho antes de ser editado pela equipa
 addCol('leads', 'telefone_norm', 'TEXT');
+addCol('leads', 'externo_id', 'TEXT');           // id da conversa de origem (importações)
+addCol('leads', 'origem', 'TEXT');               // 'importada' quando veio de uma importação
 addCol('stock_sync', 'preco', 'TEXT');           // preço anunciado vindo da BikeBound
 addCol('stock_sync', 'link', 'TEXT');            // link do anúncio vindo da BikeBound
 db.exec(`
 CREATE UNIQUE INDEX IF NOT EXISTS idx_msg_externo ON mensagens(externo_id) WHERE externo_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_lead_tel ON leads(telefone_norm);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_lead_externo ON leads(externo_id) WHERE externo_id IS NOT NULL;
 `);
 
 // Telefone só com dígitos, sem indicativo de Portugal: "+351 912 345 678" e "912345678" são o mesmo cliente.

@@ -8,6 +8,7 @@ import { importStock, importPrecos, getStock } from './stock.js';
 import { syncStock, syncStatus, startAutoSync } from './sync.js';
 import { processInbound, registarSemResposta } from './leads.js';
 import { instrucoesStand, assinaturaOlx, telefoneStand } from './assistant.js';
+import { importarConversas } from './import.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -134,7 +135,7 @@ async function api(req, res, url) {
     const id = m[1];
     const lead = db.prepare('SELECT * FROM leads WHERE id=?').get(id);
     if (!lead) return send(res, 404, { erro: 'Lead não encontrada' });
-    if (M === 'GET') return send(res, 200, { lead, mensagens: db.prepare('SELECT * FROM mensagens WHERE lead_id=? ORDER BY id').all(id) });
+    if (M === 'GET') return send(res, 200, { lead, mensagens: db.prepare('SELECT * FROM mensagens WHERE lead_id=? ORDER BY criado_em, id').all(id) });
     if (M === 'DELETE') {
       db.exec('BEGIN');
       try {
@@ -203,6 +204,9 @@ async function api(req, res, url) {
       return send(res, 200, { ok: true });
     }
   }
+
+  // Importação de conversas já existentes (não gera rascunhos nem envia nada).
+  if (p === '/api/importar' && M === 'POST') return send(res, 200, importarConversas((await json(req)).conversas));
 
   // Cópia de segurança: todas as leads e conversas num ficheiro.
   if (p === '/api/export' && M === 'GET') {

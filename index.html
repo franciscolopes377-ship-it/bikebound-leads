@@ -51,6 +51,7 @@ label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
 <main>
   <section id="v-leads">
     <div class="row" id="filtros"></div>
+    <select id="f-mota" style="margin-top:8px"><option value="">Todas as motas</option></select>
     <div id="lista"></div>
     <div id="ficha" class="hide"></div>
   </section>
@@ -104,6 +105,12 @@ label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
       <div class="row" style="margin-top:10px"><button class="btn" id="c-ok">Guardar</button><span id="c-msg" class="small mut"></span></div>
     </div>
     <div class="card">
+      <strong>Importar conversas</strong>
+      <p class="small mut">Carrega um ficheiro de conversas já existentes (por exemplo do OLX). Só regista o histórico: não cria rascunhos nem envia nada. Repetir o mesmo ficheiro não duplica.</p>
+      <input type="file" id="i-file" accept=".json,application/json">
+      <div class="row" style="margin-top:10px"><button class="btn" id="i-ok">Importar</button><span id="i-msg" class="small mut"></span></div>
+    </div>
+    <div class="card">
       <strong>Cópia de segurança</strong>
       <p class="small mut">Descarrega todas as leads e conversas num ficheiro. Faz isto de vez em quando e guarda-o em local seguro (tem dados de clientes).</p>
       <a class="btn sec" href="/api/export" download style="display:inline-block;text-decoration:none">Descarregar cópia</a>
@@ -115,7 +122,8 @@ label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
 const $=s=>document.querySelector(s);
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
 const api=async(u,o={})=>{const r=await fetch(u,o);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.erro||('erro '+r.status));return j};
-let filtro='',atual=null;
+let filtro='',fMota='',atual=null;
+const dataPt=d=>{if(!d)return '';const t=new Date(String(d).replace(' ','T')+'Z');return isNaN(t)?'':t.toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})};
 
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));
@@ -129,24 +137,32 @@ function filtros(){
     const b=el('button','chip'+(filtro===v?' on':''),t);b.onclick=()=>{filtro=v;voltar()};f.append(b)});
 }
 async function voltar(){
-  atual=null;$('#ficha').classList.add('hide');$('#lista').classList.remove('hide');$('#filtros').classList.remove('hide');
+  atual=null;$('#ficha').classList.add('hide');$('#lista').classList.remove('hide');$('#filtros').classList.remove('hide');$('#f-mota').classList.remove('hide');
   filtros();const l=$('#lista');l.replaceChildren();
-  const rows=await api('/api/leads'+(filtro?'?classificacao='+filtro:''));
-  if(!rows.length)l.append(el('p','mut','Ainda sem leads.'));
+  const todas=await api('/api/leads');
+  // interessados por mota
+  const cont={};todas.forEach(r=>{if(r.mota_interesse)cont[r.mota_interesse]=(cont[r.mota_interesse]||0)+1});
+  const sm=$('#f-mota');while(sm.options.length>1)sm.remove(1);
+  Object.entries(cont).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).forEach(([k,n])=>{const o=el('option','',k+' ('+n+')');o.value=k;sm.append(o)});
+  if(fMota&&!cont[fMota])fMota='';sm.value=fMota;
+  const rows=todas.filter(r=>(!filtro||r.classificacao===filtro)&&(!fMota||r.mota_interesse===fMota));
+  l.append(el('p','small mut',rows.length+(rows.length===1?' lead':' leads')));
+  if(!rows.length)l.append(el('p','mut',todas.length?'Nenhuma lead com estes filtros.':'Ainda sem leads.'));
   rows.forEach(r=>{
     const c=el('div','card lead');
     const top=el('div','row');
     top.append(el('strong','',r.nome||r.telefone||('Cliente #'+r.id)),el('span','tag '+r.classificacao,r.classificacao),el('span','tag mut',r.canal));
     if(r.alertar)top.append(el('span','tag quente','⚠ avisar equipa'));
     if(r.rascunhos)top.append(el('span','tag','✎ '+r.rascunhos+' rascunho'));
+    if(r.origem==='importada')top.append(el('span','tag mut','importada'));
     c.append(top);
     if(r.resumo_equipa)c.append(el('div','small',r.resumo_equipa));
-    c.append(el('div','small mut',(r.mota_interesse?r.mota_interesse+' · ':'')+'estado: '+r.estado));
+    c.append(el('div','small mut',(r.mota_interesse?r.mota_interesse+' · ':'')+'estado: '+r.estado.replace('_',' ')+(r.atualizado_em?' · '+dataPt(r.atualizado_em):'')));
     c.onclick=()=>abre(r.id);l.append(c)});
 }
 async function abre(id){
   atual=id;const {lead,mensagens}=await api('/api/leads/'+id);
-  $('#lista').classList.add('hide');$('#filtros').classList.add('hide');
+  $('#lista').classList.add('hide');$('#filtros').classList.add('hide');$('#f-mota').classList.add('hide');
   const f=$('#ficha');f.classList.remove('hide');f.replaceChildren();
   const back=el('button','btn sec','← Voltar');back.onclick=voltar;f.append(back);
   const h=el('div','card');
@@ -174,7 +190,7 @@ async function abre(id){
       const en=el('button','btn sec','Marcar como enviada');en.onclick=async()=>{await api(`/api/mensagens/${m.id}/estado`,{method:'POST',body:JSON.stringify({estado:'enviada',texto:ta.value})});abre(id)};
       const de=el('button','btn sec','Descartar');de.onclick=async()=>{await api(`/api/mensagens/${m.id}/estado`,{method:'POST',body:JSON.stringify({estado:'descartada'})});abre(id)};
       r.append(cp,en,de);box.append(r);t.append(box);return}
-    t.append(el('div','msg '+(m.direcao==='inbound'?'in':'out'),m.texto));
+    const bl=el('div','msg '+(m.direcao==='inbound'?'in':'out'),m.texto);const dt=el('div','small',dataPt(m.criado_em));dt.style.opacity='.6';dt.style.marginTop='4px';bl.append(dt);t.append(bl);
   });
   f.append(t);
   const n=el('div','card');n.append(el('label','','Nova mensagem do cliente nesta conversa'));
@@ -223,6 +239,7 @@ async function carregaClientes(){
     sel.value=[...sel.options].some(o=>o.value===v)?v:''}catch{}
   $('#n-novo').classList.toggle('hide',!!sel.value);
 }
+$('#f-mota').onchange=()=>{fMota=$('#f-mota').value;voltar()};
 $('#n-lead').onchange=()=>$('#n-novo').classList.toggle('hide',!!$('#n-lead').value);
 async function carregaConfig(){
   try{const c=await api('/api/config');$('#c-instr').value=c.instrucoes||'';$('#c-tel').value=c.telefone_stand||'';$('#c-ass').value=c.assinatura_olx||''}catch(e){$('#c-msg').textContent='Erro: '+e.message}
@@ -230,6 +247,11 @@ async function carregaConfig(){
 $('#c-ok').onclick=async()=>{const m=$('#c-msg');m.className='small mut';m.textContent='A guardar…';
   try{await api('/api/config',{method:'PUT',body:JSON.stringify({instrucoes:$('#c-instr').value,telefone_stand:$('#c-tel').value,assinatura_olx:$('#c-ass').value})});m.textContent='Guardado ✓';carregaConfig()}
   catch(e){m.textContent='Erro: '+e.message;m.className='small err'}};
+$('#i-ok').onclick=async()=>{const f=$('#i-file').files[0],m=$('#i-msg');m.className='small mut';if(!f){m.textContent='Escolhe um ficheiro.';return}
+  try{let d=JSON.parse(await f.text());if(Array.isArray(d))d={conversas:d};
+    const r=await api('/api/importar',{method:'POST',body:JSON.stringify({conversas:d.conversas})});
+    m.textContent=r.leads_novas+' leads novas, '+r.leads_atualizadas+' atualizadas, '+r.mensagens_novas+' mensagens'+(r.erros.length?' · '+r.erros.length+' com erro':'')+' ✓'}
+  catch(e){m.textContent='Erro: '+(e instanceof SyntaxError?'o ficheiro não é JSON válido':e.message);m.className='small err'}};
 $('#sync-ok').onclick=async()=>{const b=$('#sync-ok'),m=$('#sync-msg');b.disabled=true;m.textContent='A sincronizar…';
   try{const r=await api('/api/sync',{method:'POST'});m.textContent=r.motas+' motas ✓';carregaStock()}
   catch(e){m.textContent='Erro: '+e.message;m.className='small err'}b.disabled=false};

@@ -184,6 +184,30 @@ const s2 = r.b.find(m => m.matricula === 'GG-44-HH'); assert.equal(s2.preco, '')
 assert.equal(avisosRascunho('Fica por 8.500 €, veja https://olx.pt/novo'), null); assert.equal(avisosRascunho('A Z900 fica por 9.250 €'), null); assert.match(avisosRascunho('Fica por 7.900 €'), /7\.900/); ok('preço e link da BikeBound têm prioridade sobre o CSV; valores inválidos ignorados');
 bb.close();
 
+// ---------- importação de conversas antigas ----------
+const conv = [
+  { canal: 'olx', externo_id: 'thread-1', nome: 'Tiago', mota_id: 'AA-11-BB', classificacao: 'morno', resumo: 'Perguntou pelo preço',
+    mensagens: [{ direcao: 'inbound', texto: 'Boa tarde, ainda está à venda?', data: '2026-11-01T15:42:00Z' }, { direcao: 'outbound', texto: 'Boa tarde, como está? Sim, está disponível.', data: '2026-11-01T16:00:00Z' }] },
+  { canal: 'olx', externo_id: 'thread-2', nome: 'Sofia', link_anuncio: 'https://olx.pt/novo?utm=1', mensagens: [{ direcao: 'inbound', texto: 'Aceita retoma?', data: '2026-10-20T10:00:00Z' }], retoma: true, classificacao: 'retoma' },
+  { canal: 'olx', nome: 'Sem id', mota: 'Honda PCX 125 (vendida)', mensagens: [{ direcao: 'inbound', texto: 'olá', data: '2026-09-01T09:00:00Z' }] },
+  { canal: 'fax', nome: 'Mau', mensagens: [{ direcao: 'inbound', texto: 'x' }] },
+  { canal: 'olx', nome: 'Vazia', mensagens: [] }
+];
+const totalMsgs = () => db.prepare('SELECT COUNT(*) AS n FROM mensagens').get().n; const antesMsgs = totalMsgs();
+r = await post('/api/importar', { conversas: conv }); assert.equal(r.s, 200); assert.equal(r.b.leads_novas, 3); assert.equal(r.b.mensagens_novas, 4); assert.equal(r.b.erros.length, 2); assert.match(r.b.erros[0].erro, /canal/);
+assert.equal(totalMsgs(), antesMsgs + 4); ok('importação: 3 conversas válidas entram, 2 inválidas são reportadas, sem rascunhos');
+r = await j('/api/leads'); const tiago = r.b.find(l => l.nome === 'Tiago'), sofia = r.b.find(l => l.nome === 'Sofia'), semId = r.b.find(l => l.nome === 'Sem id');
+assert.equal(tiago.origem, 'importada'); assert.match(tiago.mota_interesse, /Yamaha MT-07/); assert.equal(tiago.classificacao, 'morno'); assert.equal(tiago.rascunhos, 0); assert.equal(tiago.atualizado_em, '2026-11-01 16:00:00'); assert.equal(tiago.criado_em, '2026-11-01 15:42:00');
+assert.match(sofia.mota_interesse, /Yamaha MT-07/); assert.equal(sofia.retoma, 1); assert.equal(semId.mota_interesse, 'Honda PCX 125 (vendida)'); ok('importação: mota ligada por matrícula ou link do anúncio; datas originais mantidas');
+r = await j('/api/leads/' + tiago.id); assert.deepEqual(r.b.mensagens.map(m => m.estado), ['recebida', 'enviada']); assert.equal(r.b.mensagens[0].criado_em, '2026-11-01 15:42:00');
+conv[0].mensagens.push({ direcao: 'inbound', texto: 'Posso ir ver sábado?', data: '2026-11-02T09:00:00Z' }); conv[0].classificacao = 'quente';
+r = await post('/api/importar', { conversas: conv.slice(0, 3) }); assert.equal(r.b.leads_novas, 0); assert.equal(r.b.leads_atualizadas, 1); assert.equal(r.b.mensagens_novas, 1); assert.equal(r.b.conversas_sem_novidades, 2);
+r = await j('/api/leads/' + tiago.id); assert.equal(r.b.mensagens.length, 3); assert.equal(r.b.lead.classificacao, 'quente'); assert.equal(r.b.lead.resumo_equipa, 'Perguntou pelo preço'); ok('repetir a importação não duplica: só entram mensagens novas');
+r = await post('/api/mensagens', { canal: 'olx', lead_id: tiago.id, texto: 'Ainda dá para sábado?' }); assert.ok(r.b.rascunho_id); ok('lead importada continua a conversa normalmente (rascunho com o histórico)');
+ctx = buildUserContent({ canal: 'olx', lead: {}, historico: [], texto: 'olá' }); assert.match(ctx, /Sim, está disponível/); ok('respostas antigas importadas servem de referência de tom');
+assert.equal((await post('/api/importar', { conversas: [] })).s, 400); assert.equal((await post('/api/importar', {})).s, 400); assert.equal((await post('/api/importar', { conversas: Array(201).fill(conv[2]) })).s, 400);
+assert.equal((await post('/api/importar', { conversas: conv }, { headers: { 'sec-fetch-site': 'cross-site' } })).s, 403); ok('importação: pedidos vazios, excessivos ou de outro site recusados');
+
 // ---------- apagar e cópia de segurança ----------
 r = await j('/api/export'); assert.equal(r.s, 200); assert.match(r.h.get('content-disposition'), /attachment; filename="bikebound-leads-\d{4}-\d{2}-\d{2}\.json"/); assert.ok(r.b.leads.length >= 5 && r.b.mensagens.length >= 8); assert.equal((await fetch(base + '/api/export')).status, 401); ok('cópia de segurança com leads e conversas (só com palavra-passe)');
 assert.equal((await j('/api/leads/' + lid, { method: 'DELETE' })).s, 200); assert.equal((await j('/api/leads/' + lid)).s, 404); assert.equal((await j('/api/leads/' + lid, { method: 'DELETE' })).s, 404);
