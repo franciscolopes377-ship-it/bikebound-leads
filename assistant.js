@@ -73,7 +73,9 @@ CONVERSA ATÉ AQUI:
 ${h}
 
 NOVA MENSAGEM DO CLIENTE:
-${texto}`;
+${texto}
+
+IMPORTANTE: não respondas ao cliente diretamente. Devolve APENAS o objeto JSON descrito no sistema (começa em { e termina em }), com a resposta ao cliente dentro de "resposta_ao_cliente".`;
 }
 
 export function extractJson(text) {
@@ -96,19 +98,34 @@ function mockReply({ texto, canal }) {
   };
 }
 
+async function callApi(key, messages) {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, max_tokens: 900, system: SYSTEM_PROMPT, messages })
+  });
+  if (!r.ok) throw new Error(`API Claude ${r.status}: ${(await r.text()).slice(0, 300)}`);
+  const data = await r.json();
+  const text = (data.content || []).map(c => c.text || '').join('');
+  return { text, stop: data.stop_reason };
+}
+
 export async function askClaude(ctx) {
   if (process.env.MOCK_CLAUDE === '1') return mockReply(ctx);
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('Falta ANTHROPIC_API_KEY');
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL, max_tokens: 700, system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: buildUserContent(ctx) }]
-    })
-  });
-  if (!r.ok) throw new Error(`API Claude ${r.status}: ${(await r.text()).slice(0, 300)}`);
-  const data = await r.json();
-  return extractJson(data.content.map(c => c.text || '').join(''));
+  const user = buildUserContent(ctx);
+  let { text, stop } = await callApi(key, [{ role: 'user', content: user }]);
+  try { return extractJson(text); } catch { /* segunda tentativa abaixo */ }
+  // Segunda tentativa: pede explicitamente o JSON e deixa o modelo corrigir a resposta anterior
+  const retry = await callApi(key, [
+    { role: 'user', content: user },
+    { role: 'assistant', content: text && text.trim() ? text : '(sem resposta)' },
+    { role: 'user', content: 'Devolve agora a mesma resposta, mas APENAS como o objeto JSON pedido (começa em { e termina em }), sem texto antes ou depois.' }
+  ]);
+  try { return extractJson(retry.text); }
+  catch {
+    const excerto = (retry.text || text || '(vazio)').replace(/\s+/g, ' ').slice(0, 200);
+    throw new Error(`Resposta sem JSON (motivo: ${retry.stop || stop}). Início da resposta: "${excerto}"`);
+  }
 }
