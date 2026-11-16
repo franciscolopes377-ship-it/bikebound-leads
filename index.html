@@ -59,6 +59,8 @@ label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
       <p class="mut small">Cola a mensagem do cliente (OLX, ou WhatsApp enquanto a ligação automática não está ativa). O assistente prepara um rascunho; nada é enviado.</p>
       <label>Canal</label>
       <select id="n-canal"><option value="olx">OLX</option><option value="whatsapp">WhatsApp</option></select>
+      <label>Mota do anúncio (opcional)</label>
+      <select id="n-mota"><option value="">— deixar o assistente deduzir pelo texto —</option></select>
       <label>Nome do cliente</label><input id="n-nome" placeholder="Como aparece no chat">
       <label>Telefone (opcional)</label><input id="n-tel" inputmode="tel">
       <label>Mensagem do cliente</label><textarea id="n-texto"></textarea>
@@ -68,7 +70,18 @@ label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
 
   <section id="v-stock" class="hide">
     <div class="card">
-      <p class="small mut">Carrega um CSV com as colunas: modelo, mes_ano, km, preco, estado, link. Substitui o stock anterior.</p>
+      <div id="sync-estado" class="small"></div>
+      <div class="row" style="margin-top:8px"><button class="btn sec" id="sync-ok">Sincronizar agora</button><span id="sync-msg" class="small mut"></span></div>
+    </div>
+    <div class="card">
+      <strong>Preços e links (por matrícula)</strong>
+      <p class="small mut">CSV com as colunas: matricula, preco, link (e opcionalmente estado). Substitui a lista anterior.</p>
+      <input type="file" id="p-file" accept=".csv,text/csv">
+      <div class="row" style="margin-top:10px"><button class="btn" id="p-ok">Carregar preços</button><span id="p-msg" class="small mut"></span></div>
+    </div>
+    <div class="card">
+      <strong>Stock manual (alternativa)</strong>
+      <p class="small mut">Só usado se a sincronização com a BikeBound não estiver ativa. CSV com: modelo, mes_ano, km, preco, estado, link.</p>
       <input type="file" id="s-file" accept=".csv,text/csv">
       <div class="row" style="margin-top:10px"><button class="btn" id="s-ok">Carregar stock</button><span id="s-msg" class="small mut"></span></div>
     </div>
@@ -85,7 +98,7 @@ let filtro='',atual=null;
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));
   ['leads','nova','stock'].forEach(v=>$('#v-'+v).classList.toggle('hide',v!==b.dataset.v));
-  if(b.dataset.v==='leads')voltar(); if(b.dataset.v==='stock')carregaStock();
+  if(b.dataset.v==='leads')voltar(); if(b.dataset.v==='stock')carregaStock(); if(b.dataset.v==='nova')carregaMotas($('#n-mota'));
 });
 
 function filtros(){
@@ -138,15 +151,16 @@ async function abre(id){
   });
   f.append(t);
   const n=el('div','card');n.append(el('label','','Nova mensagem do cliente nesta conversa'));
+  const ms=el('select');const o0=el('option','','— mota do anúncio (opcional) —');o0.value='';ms.append(o0);carregaMotas(ms);
   const ta=el('textarea');const go=el('button','btn','Gerar rascunho');go.style.marginTop='8px';
   go.onclick=async()=>{if(!ta.value.trim())return;go.disabled=true;go.textContent='A preparar…';
-    try{const r=await api('/api/mensagens',{method:'POST',body:JSON.stringify({canal:lead.canal,lead_id:id,texto:ta.value})});if(r.erro)alert(r.erro)}catch(e){alert(e.message)}abre(id)};
-  n.append(ta,go);f.append(n);
+    try{const r=await api('/api/mensagens',{method:'POST',body:JSON.stringify({canal:lead.canal,lead_id:id,mota_id:ms.value||null,texto:ta.value})});if(r.erro)alert(r.erro)}catch(e){alert(e.message)}abre(id)};
+  n.append(ms,ta,go);f.append(n);
 }
 $('#n-ok').onclick=async()=>{
   const b=$('#n-ok'),m=$('#n-msg');if(!$('#n-texto').value.trim()){m.textContent='Cola a mensagem.';return}
   b.disabled=true;m.textContent='A preparar…';
-  try{const r=await api('/api/mensagens',{method:'POST',body:JSON.stringify({canal:$('#n-canal').value,nome:$('#n-nome').value.trim()||null,telefone:$('#n-tel').value.trim()||null,texto:$('#n-texto').value})});
+  try{const r=await api('/api/mensagens',{method:'POST',body:JSON.stringify({canal:$('#n-canal').value,mota_id:$('#n-mota').value||null,nome:$('#n-nome').value.trim()||null,telefone:$('#n-tel').value.trim()||null,texto:$('#n-texto').value})});
     if(r.erro){m.textContent='Erro: '+r.erro;m.className='small err';b.disabled=false;return}
     $('#n-texto').value='';m.textContent='';b.disabled=false;
     document.querySelector('[data-v=leads]').click();abre(r.lead_id)}
@@ -155,8 +169,31 @@ $('#n-ok').onclick=async()=>{
 async function carregaStock(){
   const l=$('#s-lista');l.replaceChildren();const rows=await api('/api/stock');
   l.append(el('p','small mut',rows.length+' motas no stock'));
-  rows.forEach(r=>l.append(el('div','card small',[r.modelo,r.mes_ano,r.km&&r.km+' km',r.preco&&r.preco+' €',r.estado].filter(Boolean).join(' · '))));
+  rows.forEach(r=>{const c=el('div','card small',[r.modelo,r.mes_ano,r.km&&r.km+' km',r.preco&&r.preco+' €',r.estado].filter(Boolean).join(' · '));
+    if(!r.preco){const t=el('span','tag quente','sem preço');t.style.marginLeft='8px';c.append(t)}
+    if(r.matricula){const m=el('span','mut',' · '+r.matricula);c.append(m)}
+    l.append(c)});
+  estadoSync();
 }
+async function estadoSync(){
+  try{const i=await api('/api/sync');const e=$('#sync-estado');e.replaceChildren();
+    if(!i.configurado){e.textContent='Sincronização com a BikeBound: não configurada (a usar o stock manual).';return}
+    e.append(el('div','',i.motas+' motas sincronizadas da BikeBound'));
+    e.append(el('div','mut',i.ultima_ok?'Última sincronização: '+new Date(i.ultima_ok).toLocaleString('pt-PT'):'Ainda sem sincronização'));
+    if(i.erro)e.append(el('div','err','Erro: '+i.erro))}catch{}
+}
+async function carregaMotas(sel,atual){
+  try{const rows=await api('/api/stock');const v=sel.value;
+    while(sel.options.length>1)sel.remove(1);
+    rows.forEach(r=>{const o=el('option','',[r.modelo,r.mes_ano,r.km&&r.km+' km',r.preco?r.preco+' €':'sem preço'].filter(Boolean).join(' · '));o.value=r.id;sel.append(o)});
+    sel.value=v||atual||''}catch{}
+}
+$('#sync-ok').onclick=async()=>{const b=$('#sync-ok'),m=$('#sync-msg');b.disabled=true;m.textContent='A sincronizar…';
+  try{const r=await api('/api/sync',{method:'POST'});m.textContent=r.motas+' motas ✓';carregaStock()}
+  catch(e){m.textContent='Erro: '+e.message;m.className='small err'}b.disabled=false};
+$('#p-ok').onclick=async()=>{const f=$('#p-file').files[0],m=$('#p-msg');if(!f){m.textContent='Escolhe um ficheiro.';return}
+  try{const r=await api('/api/precos',{method:'POST',body:await f.text()});m.textContent=r.importados+' preços carregados ✓';m.className='small mut';carregaStock()}
+  catch(e){m.textContent='Erro: '+e.message;m.className='small err'}};
 $('#s-ok').onclick=async()=>{
   const f=$('#s-file').files[0],m=$('#s-msg');if(!f){m.textContent='Escolhe um ficheiro.';return}
   try{const r=await api('/api/stock',{method:'POST',body:await f.text()});m.textContent=r.importadas+' motas carregadas ✓';m.className='small mut';carregaStock()}

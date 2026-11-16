@@ -4,7 +4,8 @@ import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { db } from './db.js';
-import { importStock, getStock } from './stock.js';
+import { importStock, importPrecos, getStock } from './stock.js';
+import { syncStock, syncStatus, startAutoSync } from './sync.js';
 import { processInbound } from './leads.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -113,6 +114,19 @@ export const server = http.createServer(async (req, res) => {
       if (req.method === 'POST') { try { return send(res, 200, { importadas: importStock(await readBody(req)) }); } catch (e) { return send(res, 400, { erro: e.message }); } }
     }
 
+    if (p === '/api/precos' && req.method === 'POST') {
+      try { return send(res, 200, { importados: importPrecos(await readBody(req)) }); }
+      catch (e) { return send(res, 400, { erro: e.message }); }
+    }
+
+    if (p === '/api/sync') {
+      if (req.method === 'GET') return send(res, 200, syncStatus());
+      if (req.method === 'POST') {
+        try { return send(res, 200, await syncStock()); }
+        catch (e) { return send(res, 502, { erro: e.message }); }
+      }
+    }
+
     send(res, 404, { erro: 'Não encontrado' });
   } catch (e) {
     console.error(e);
@@ -122,5 +136,6 @@ export const server = http.createServer(async (req, res) => {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (!PASS) console.warn('AVISO: defina APP_PASSWORD, senão ninguém consegue entrar.');
+  startAutoSync();
   server.listen(PORT, () => console.log(`BikeBound Leads em http://localhost:${PORT} (auto-envio: ${AUTO_SEND ? 'ON' : 'OFF'})`));
 }

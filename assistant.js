@@ -13,6 +13,7 @@ DADOS
 Só usas a lista de stock que recebes (modelo, mês/ano, km, preço de venda, estado, link). Nunca inventes dados. Se o preço não constar, não o indiques e diz que a equipa confirma.
 
 COMO RESPONDER
+- Se receberes "MOTA EM CAUSA", o cliente refere-se a essa mota (vem do anúncio): responde sobre ela.
 - Pergunta por mota do stock: confirma disponibilidade, mês/ano, km e preço de venda.
 - Mota vendida ou não encontrada: diz com franqueza. Não sugiras motas; o cliente vê o perfil do stand no OLX.
 - Visita: o stand funciona por marcação prévia. Pergunta que dia e hora lhe dá jeito.
@@ -49,14 +50,14 @@ Mantém os valores já conhecidos do lead se a nova mensagem não os alterar.`;
 function stockAsText() {
   const s = getStock();
   if (!s.length) return '(stock vazio)';
-  return s.map(m => `- ${m.modelo} | ${m.mes_ano} | ${m.km} km | ${m.preco ? m.preco + ' €' : 'preço n/d'} | ${m.estado} | ${m.link}`).join('\n');
+  return s.map(m => `- ${[m.modelo, m.mes_ano, m.km && m.km + ' km', m.cor, m.preco ? m.preco + ' €' : 'preço n/d', m.estado, m.link].filter(Boolean).join(' | ')}`).join('\n');
 }
 
 const lisbonNow = () => new Intl.DateTimeFormat('pt-PT', {
   timeZone: 'Europe/Lisbon', weekday: 'long', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'
 }).format(new Date());
 
-export function buildUserContent({ canal, lead, historico, texto }) {
+export function buildUserContent({ canal, lead, historico, texto, mota }) {
   const h = historico.map(m => `${m.direcao === 'inbound' ? 'CLIENTE' : 'STAND'}: ${m.texto}`).join('\n') || '(primeira mensagem)';
   return `CANAL: ${canal}
 HORA LOCAL: ${lisbonNow()}
@@ -66,7 +67,7 @@ LEAD ATUAL: ${JSON.stringify({
     classificacao: lead.classificacao
   })}
 
-STOCK:
+${mota ? `MOTA EM CAUSA: ${[mota.modelo, mota.mes_ano, mota.km && mota.km + ' km', mota.preco ? mota.preco + ' €' : 'preço n/d', mota.link].filter(Boolean).join(' | ')}\n\n` : ''}STOCK:
 ${stockAsText()}
 
 CONVERSA ATÉ AQUI:

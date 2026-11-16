@@ -53,6 +53,49 @@ assert.equal(w.status, 200); await new Promise(r => setTimeout(r, 300));
 r = await j('/api/leads'); const marta = r.b.find(l => l.telefone === '351912345678');
 assert.ok(marta && marta.nome === 'Marta' && marta.financiamento === 1 && marta.rascunhos === 1); ok('mensagem WhatsApp → lead + rascunho (financiamento detetado)');
 
+// ---- sincronização com a BikeBound + preços por matrícula + mota do anúncio ----
+const http = await import('node:http');
+const { buildUserContent } = await import('./assistant.js');
+let bbMotas = [
+  { id: '1', matricula: 'AA-11-BB', marca: 'Yamaha', modelo: 'MT-07', versao: null, cilindrada: 689, cor: 'Azul', quilometragem: 18000, data_matricula: '2021-03-15', ano: 2021, dias_em_stock: 10, consignacao: false },
+  { id: '2', matricula: 'CC-22-DD', marca: 'Honda', modelo: 'CB500X', versao: 'ABS', cilindrada: 471, cor: 'Preto', quilometragem: 25000, data_matricula: '2019-11-02', ano: 2019, dias_em_stock: 40, consignacao: false },
+  { id: '3', matricula: 'EE-33-FF', marca: 'BMW', modelo: 'R1250GS', versao: null, cilindrada: 1254, cor: 'Cinza', quilometragem: 9000, data_matricula: null, ano: 2022, dias_em_stock: 5, consignacao: true }
+];
+let bbAuth = null;
+const bb = http.createServer((req, res) => {
+  bbAuth = req.headers.authorization;
+  if (bbAuth !== 'Bearer token-bb') { res.writeHead(401); return res.end('no'); }
+  res.writeHead(200, { 'content-type': 'application/json' });
+  res.end(JSON.stringify({ atualizado_em: new Date().toISOString(), motas: bbMotas }));
+});
+await new Promise(r => bb.listen(0, r));
+
+r = await j('/api/sync', { method: 'POST' }); assert.equal(r.s, 502); assert.match(r.b.erro, /Falta BIKEBOUND/); ok('sync sem configuração → erro claro');
+process.env.BIKEBOUND_STOCK_URL = `http://localhost:${bb.address().port}/api/public/stock`;
+process.env.BIKEBOUND_STOCK_TOKEN = 'token-bb';
+r = await j('/api/sync', { method: 'POST' }); assert.equal(r.s, 200); assert.equal(r.b.motas, 3); assert.equal(bbAuth, 'Bearer token-bb'); ok('sync lê 3 motas e envia o token');
+r = await j('/api/stock'); assert.equal(r.b.length, 3); assert.equal(r.b[0].fonte, 'bikebound');
+const mt = r.b.find(m => m.matricula === 'AA-11-BB'); assert.equal(mt.modelo, 'Yamaha MT-07'); assert.equal(mt.mes_ano, '03/2021'); assert.equal(mt.km, '18000'); assert.equal(mt.sem_preco, true);
+assert.equal(r.b.find(m => m.matricula === 'EE-33-FF').mes_ano, '2022'); ok('stock vem da BikeBound (modelo, mês/ano, km); sem preço assinalado');
+
+r = await j('/api/precos', { method: 'POST', body: 'matricula;preco;link\naa 11 bb;7.900;https://olx.pt/x\n' }); assert.equal(r.b.importados, 1); ok('CSV de preços importado');
+r = await j('/api/stock'); const mt2 = r.b.find(m => m.matricula === 'AA-11-BB'); assert.equal(mt2.preco, '7.900'); assert.equal(mt2.link, 'https://olx.pt/x'); assert.equal(mt2.sem_preco, false);
+assert.equal(r.b.find(m => m.matricula === 'CC-22-DD').sem_preco, true); ok('preço/link ligados por matrícula (formato tolerante)');
+assert.equal((await j('/api/precos', { method: 'POST', body: 'foo;bar\n1;2\n' })).s, 400); ok('CSV de preços sem matrícula rejeitado');
+
+r = await j('/api/mensagens', { method: 'POST', body: JSON.stringify({ canal: 'olx', nome: 'Pedro', mota_id: 'AA-11-BB', texto: 'Ainda está disponível?' }) });
+r = await j('/api/leads/' + r.b.lead_id); assert.match(r.b.lead.mota_interesse, /Yamaha MT-07/); ok('mota escolhida fica na lead');
+const ctxTxt = buildUserContent({ canal: 'olx', lead: {}, historico: [], texto: 'olá', mota: mt2 });
+assert.match(ctxTxt, /MOTA EM CAUSA: Yamaha MT-07 \| 03\/2021 \| 18000 km \| 7\.900 € \| https:\/\/olx\.pt\/x/); assert.ok(!ctxTxt.includes('AA-11-BB')); ok('pedido ao Claude leva a mota em causa, sem matrícula');
+
+bbMotas = []; r = await j('/api/sync', { method: 'POST' }); assert.equal(r.s, 502); assert.equal((await j('/api/stock')).b.length, 3); ok('resposta vazia não apaga o stock');
+bbMotas = [bbMotas[0]];
+process.env.BIKEBOUND_STOCK_TOKEN = 'errado'; r = await j('/api/sync', { method: 'POST' }); assert.equal(r.s, 502);
+assert.equal((await j('/api/stock')).b.length, 3); r = await j('/api/sync'); assert.match(r.b.erro, /401/); assert.equal(r.b.motas, 3); ok('token errado: mantém stock anterior e mostra erro');
+process.env.BIKEBOUND_STOCK_TOKEN = 'token-bb'; bbMotas = [{ matricula: 'AA-11-BB', marca: 'Yamaha', modelo: 'MT-07', quilometragem: 18000, data_matricula: '2021-03-15' }];
+r = await j('/api/sync', { method: 'POST' }); assert.equal(r.b.motas, 1); assert.equal((await j('/api/stock')).b.length, 1); ok('mota vendida (sai da lista) desaparece do stock');
+bb.close();
+
 // parsing de JSON do modelo
 assert.equal(extractJson('```json\n{"a":1}\n```').a, 1); ok('extractJson tolera texto à volta');
 
