@@ -195,7 +195,7 @@ async function api(req, res, url) {
     if (M === 'GET') return send(res, 200, { instrucoes: instrucoesStand(), assinatura_olx: assinaturaOlx(), telefone_stand: telefoneStand() });
     if (M === 'PUT') {
       const b = await json(req);
-      const limites = { instrucoes: 6000, assinatura_olx: 300, telefone_stand: 30 };
+      const limites = { instrucoes: 20000, assinatura_olx: 300, telefone_stand: 30 };
       for (const [k, max] of Object.entries(limites)) {
         if (b[k] === undefined) continue;
         if (typeof b[k] !== 'string' || b[k].length > max) return send(res, 400, { erro: `Campo "${k}" inválido ou demasiado longo (máx. ${max})` });

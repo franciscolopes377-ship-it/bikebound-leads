@@ -96,12 +96,12 @@ label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
   <section id="v-config" class="hide">
     <div class="card">
       <strong>Instruções do stand</strong>
-      <p class="small mut">O assistente segue este texto em todas as respostas. Escreve aqui o que ele deve saber: horário, morada, garantia, entregas, respostas habituais. Uma regra por linha.</p>
-      <textarea id="c-instr" style="min-height:220px" maxlength="6000"></textarea>
+      <p class="small mut">O assistente segue este texto em todas as respostas. Escreve aqui o que ele deve saber: horário, morada, garantia, entregas, respostas habituais. Podes colar aqui o guia de respostas completo, incluindo a tabela de financiamento.</p>
+      <textarea id="c-instr" style="min-height:320px" maxlength="20000"></textarea>
       <label>Telefone do stand (para onde o cliente envia documentos de financiamento)</label>
       <input id="c-tel" inputmode="tel" maxlength="30">
-      <label>Assinatura das respostas no OLX (acrescentada automaticamente)</label>
-      <input id="c-ass" maxlength="300">
+      <label>Assinatura das respostas (acrescentada automaticamente)</label>
+      <textarea id="c-ass" style="min-height:96px" maxlength="300"></textarea>
       <div class="row" style="margin-top:10px"><button class="btn" id="c-ok">Guardar</button><span id="c-msg" class="small mut"></span></div>
     </div>
     <div class="card">
