@@ -135,7 +135,11 @@ async function abre(id){
   if(lead.alertar){const a=el('div','alert','⚠ '+(lead.resumo_equipa||'Avisar equipa'));const ok=el('button','btn sec','Já tratado');ok.style.marginLeft='8px';ok.onclick=async()=>{await api('/api/leads/'+id,{method:'PATCH',body:JSON.stringify({alertar:false})});abre(id)};a.append(ok);h.append(a)}
   const sel=el('select');['novo','em_curso','visita_marcada','vendida','perdida'].forEach(s=>{const o=el('option','',s.replace('_',' '));o.value=s;if(s===lead.estado)o.selected=true;sel.append(o)});
   sel.onchange=()=>api('/api/leads/'+id,{method:'PATCH',body:JSON.stringify({estado:sel.value})});
-  h.append(el('label','','Estado'),sel);f.append(h);
+  h.append(el('label','','Estado'),sel);
+  const ap=el('button','btn sec','Apagar lead');ap.style.marginTop='12px';
+  ap.onclick=async()=>{if(!confirm('Apagar esta lead e toda a conversa? Não dá para desfazer.'))return;
+    try{await api('/api/leads/'+id,{method:'DELETE'});voltar()}catch(e){alert(e.message)}};
+  h.append(ap);f.append(h);
   const t=el('div','card');
   mensagens.forEach(m=>{
     if(m.estado==='descartada')return;

@@ -86,6 +86,17 @@ export const server = http.createServer(async (req, res) => {
       return send(res, 200, { lead, mensagens: db.prepare('SELECT * FROM mensagens WHERE lead_id=? ORDER BY id').all(m[1]) });
     }
 
+    if (req.method === 'DELETE' && (m = p.match(/^\/api\/leads\/(\d+)$/))) {
+      if (!db.prepare('SELECT id FROM leads WHERE id=?').get(m[1])) return send(res, 404, { erro: 'Lead não encontrada' });
+      db.exec('BEGIN');
+      try {
+        db.prepare('DELETE FROM mensagens WHERE lead_id=?').run(m[1]);
+        db.prepare('DELETE FROM leads WHERE id=?').run(m[1]);
+        db.exec('COMMIT');
+      } catch (e) { db.exec('ROLLBACK'); throw e; }
+      return send(res, 200, { ok: true });
+    }
+
     if (req.method === 'PATCH' && (m = p.match(/^\/api\/leads\/(\d+)$/))) {
       const b = JSON.parse((await readBody(req)) || '{}');
       const estados = ['novo', 'em_curso', 'visita_marcada', 'vendida', 'perdida'];

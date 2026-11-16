@@ -96,6 +96,12 @@ process.env.BIKEBOUND_STOCK_TOKEN = 'token-bb'; bbMotas = [{ matricula: 'AA-11-B
 r = await j('/api/sync', { method: 'POST' }); assert.equal(r.b.motas, 1); assert.equal((await j('/api/stock')).b.length, 1); ok('mota vendida (sai da lista) desaparece do stock');
 bb.close();
 
+// apagar lead
+r = await j('/api/mensagens', { method: 'POST', body: JSON.stringify({ canal: 'olx', nome: 'Apagar', texto: 'teste' }) }); const apagarId = r.b.lead_id;
+assert.equal((await j('/api/leads/' + apagarId, { method: 'DELETE' })).s, 200);
+assert.equal((await j('/api/leads/' + apagarId)).s, 404); assert.equal((await j('/api/leads/' + apagarId, { method: 'DELETE' })).s, 404);
+assert.ok(!(await j('/api/leads')).b.some(l => l.id === apagarId)); ok('apagar lead remove lead e conversa');
+
 // parsing de JSON do modelo
 assert.equal(extractJson('```json\n{"a":1}\n```').a, 1); ok('extractJson tolera texto à volta');
 
