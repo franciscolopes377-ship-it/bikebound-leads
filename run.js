@@ -4,8 +4,8 @@ const dbp = '/tmp/bb-test.db';
 for (const s of ['', '-wal', '-shm']) rmSync(dbp + s, { force: true });
 Object.assign(process.env, { DB_PATH: dbp, MOCK_CLAUDE: '1', APP_PASSWORD: 'segredo', WHATSAPP_VERIFY_TOKEN: 'tok' });
 
-const { server } = await import('../src/server.js');
-const { extractJson } = await import('../src/assistant.js');
+const { server } = await import('./server.js');
+const { extractJson } = await import('./assistant.js');
 await new Promise(r => server.listen(0, r));
 const base = `http://localhost:${server.address().port}`;
 const auth = { authorization: 'Basic ' + Buffer.from('x:segredo').toString('base64') };

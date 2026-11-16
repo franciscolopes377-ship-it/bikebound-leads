@@ -33,7 +33,7 @@ const readBody = req => new Promise((ok, ko) => {
   req.on('end', () => ok(d)); req.on('error', ko);
 });
 
-const page = readFileSync(join(here, '../public/index.html'), 'utf8');
+const page = readFileSync(join(here, 'index.html'), 'utf8');
 
 export const server = http.createServer(async (req, res) => {
   try {
