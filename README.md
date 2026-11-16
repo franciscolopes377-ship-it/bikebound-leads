@@ -1,43 +1,41 @@
 # BikeBound Leads
 
-Assistente de leads do stand: recebe mensagens (OLX e WhatsApp), prepara um rascunho de resposta com o Claude, classifica o lead e mostra tudo numa página com login. **Nada é enviado sozinho**: tu aprovas cada resposta.
+Assistente de leads do stand: recebe mensagens (OLX e WhatsApp), prepara um rascunho de resposta com o Claude, classifica o lead e mostra tudo numa página com palavra-passe. **Nada é enviado sozinho**: a equipa aprova cada resposta.
 
 ## O que faz
-- Página de leads (quente / morna / fria / retoma), ficha com conversa e rascunho editável.
-- Retomas: marca como retoma, não gera resposta e avisa a equipa.
-- Stock sincronizado automaticamente (de hora a hora) com a BikeBound: só motas disponíveis. Se falhar, mantém o stock anterior.
-- Preço e link do OLX por matrícula, por CSV (matricula, preco, link). As motas sem preço aparecem assinaladas.
-- Stock manual por CSV (modelo, mes_ano, km, preco, estado, link) só como alternativa, se a sincronização não estiver ativa.
-- Na "Nova mensagem" podes escolher a mota do anúncio, e o assistente responde sobre ela.
-- WhatsApp: endpoint `/webhook/whatsapp` pronto para a API oficial da Meta.
-- OLX: cola a mensagem em "Nova mensagem" (ligação automática ainda por fazer).
+- Página de leads (quente / morna / fria / retoma), ficha com a conversa e rascunho editável.
+- Stock sincronizado de hora a hora com a BikeBound (só motas disponíveis). Preço e link do OLX por matrícula, por CSV.
+- Na "Nova mensagem" escolhe-se o cliente (novo ou existente) e a mota do anúncio.
+- Separador "Instruções": texto que o assistente segue (horário, morada, garantia…), telefone do stand e assinatura do OLX.
+- O assistente usa as últimas respostas aprovadas pela equipa como referência de tom.
+- Cada rascunho é verificado: preços e links que não constem do stock ficam com aviso.
+- Retomas: pede os dados da mota do cliente, nunca dá valor, e avisa a equipa.
+- Cópia de segurança de leads e conversas (separador "Instruções").
+- WhatsApp: endpoint `/webhook/whatsapp` pronto para a API oficial da Meta (só aceita mensagens assinadas).
 
 ## Variáveis (Railway → Variables)
 | Variável | Valor |
 |---|---|
-| `APP_PASSWORD` | palavra-passe de acesso à página (utilizador: qualquer) |
-| `ANTHROPIC_API_KEY` | chave da API do Claude (console.anthropic.com) |
-| `DB_PATH` | `/data/leads.db` |
-| `WHATSAPP_VERIFY_TOKEN` | texto secreto à tua escolha (usado na configuração da Meta) |
-| `CLAUDE_MODEL` | opcional; por defeito `claude-haiku-5-5` |
+| `APP_PASSWORD` | palavra-passe da página (12+ caracteres; utilizador: qualquer) |
+| `ANTHROPIC_API_KEY` | chave da API do Claude |
+| `DB_PATH` | `/data/leads.db` (com um volume montado em `/data`) |
 | `BIKEBOUND_STOCK_URL` | endereço público da BikeBound + `/api/public/stock` |
 | `BIKEBOUND_STOCK_TOKEN` | o mesmo valor do segredo `STOCK_API_TOKEN` criado no Lovable |
+| `WHATSAPP_VERIFY_TOKEN` | texto secreto usado na configuração do webhook na Meta |
+| `WHATSAPP_APP_SECRET` | "App Secret" da app na Meta. Sem ele, o webhook recusa todas as mensagens |
+| `CLAUDE_MODEL` | opcional; por defeito `claude-haiku-5-5` |
+| `STAND_TELEFONE` | opcional; por defeito `927887107` (também se muda na página) |
 
-## Deploy no Railway
-1. Colocar esta pasta num repositório GitHub (privado) e, no Railway, "New Project → Deploy from GitHub".
-2. Em Settings → Volumes, criar um volume montado em `/data`.
-3. Adicionar as variáveis acima. Comando de arranque: `npm start`.
-4. Em Settings → Networking, gerar o domínio público.
-5. Abrir o link, entrar com a palavra-passe, separador Stock → carregar o CSV.
-
-## Ligar o WhatsApp (depois)
-Na Meta for Developers: criar app → produto WhatsApp → número do stand. Em Webhooks, URL `https://<teu-dominio>/webhook/whatsapp`, token = `WHATSAPP_VERIFY_TOKEN`, subscrever o campo `messages`.
+## Segurança
+- Palavra-passe comparada em tempo constante; 10 tentativas erradas bloqueiam o endereço durante 15 minutos.
+- Pedidos que alteram dados só são aceites vindos da própria página.
+- O texto do cliente é tratado como dados, nunca como instruções para o assistente.
+- A página guarda dados pessoais de clientes (nome, telefone, conversas): usar palavra-passe forte, apagar leads que já não interessam e guardar as cópias de segurança em local seguro.
 
 ## Testes
-`npm test` (usa um Claude simulado e uma BikeBound simulada, não gasta nada).
+`npm test` (usa um Claude, uma BikeBound e um WhatsApp simulados; não gasta nada).
 
 ## Ainda não incluído
-- Envio automático (fica para depois, quando decidires).
-- Aviso à equipa por WhatsApp (hoje aparece a etiqueta "avisar equipa" na página).
-- Ligação automática ao OLX.
+- Envio automático de respostas e aviso à equipa por WhatsApp.
+- Leitura automática das mensagens do OLX.
 - Preço e link dentro da BikeBound (hoje ficam neste serviço).

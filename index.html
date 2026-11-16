@@ -45,6 +45,7 @@ label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
     <button class="tab on" data-v="leads">Leads</button>
     <button class="tab" data-v="nova">Nova mensagem</button>
     <button class="tab" data-v="stock">Stock</button>
+    <button class="tab" data-v="config">Instruções</button>
   </nav>
 </header>
 <main>
@@ -59,10 +60,14 @@ label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
       <p class="mut small">Cola a mensagem do cliente (OLX, ou WhatsApp enquanto a ligação automática não está ativa). O assistente prepara um rascunho; nada é enviado.</p>
       <label>Canal</label>
       <select id="n-canal"><option value="olx">OLX</option><option value="whatsapp">WhatsApp</option></select>
+      <label>Cliente</label>
+      <select id="n-lead"><option value="">Novo cliente</option></select>
       <label>Mota do anúncio (opcional)</label>
       <select id="n-mota"><option value="">— deixar o assistente deduzir pelo texto —</option></select>
+      <div id="n-novo">
       <label>Nome do cliente</label><input id="n-nome" placeholder="Como aparece no chat">
       <label>Telefone (opcional)</label><input id="n-tel" inputmode="tel">
+      </div>
       <label>Mensagem do cliente</label><textarea id="n-texto"></textarea>
       <div class="row" style="margin-top:10px"><button class="btn" id="n-ok">Gerar rascunho</button><span id="n-msg" class="small mut"></span></div>
     </div>
@@ -87,18 +92,35 @@ label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
     </div>
     <div id="s-lista"></div>
   </section>
+  <section id="v-config" class="hide">
+    <div class="card">
+      <strong>Instruções do stand</strong>
+      <p class="small mut">O assistente segue este texto em todas as respostas. Escreve aqui o que ele deve saber: horário, morada, garantia, entregas, respostas habituais. Uma regra por linha.</p>
+      <textarea id="c-instr" style="min-height:220px" maxlength="6000"></textarea>
+      <label>Telefone do stand (para onde o cliente envia documentos de financiamento)</label>
+      <input id="c-tel" inputmode="tel" maxlength="30">
+      <label>Assinatura das respostas no OLX (acrescentada automaticamente)</label>
+      <input id="c-ass" maxlength="300">
+      <div class="row" style="margin-top:10px"><button class="btn" id="c-ok">Guardar</button><span id="c-msg" class="small mut"></span></div>
+    </div>
+    <div class="card">
+      <strong>Cópia de segurança</strong>
+      <p class="small mut">Descarrega todas as leads e conversas num ficheiro. Faz isto de vez em quando e guarda-o em local seguro (tem dados de clientes).</p>
+      <a class="btn sec" href="/api/export" download style="display:inline-block;text-decoration:none">Descarregar cópia</a>
+    </div>
+  </section>
 </main>
 
 <script>
 const $=s=>document.querySelector(s);
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
-const api=async(u,o={})=>{const r=await fetch(u,o);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.erro||r.status);return j};
+const api=async(u,o={})=>{const r=await fetch(u,o);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.erro||('erro '+r.status));return j};
 let filtro='',atual=null;
 
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));
-  ['leads','nova','stock'].forEach(v=>$('#v-'+v).classList.toggle('hide',v!==b.dataset.v));
-  if(b.dataset.v==='leads')voltar(); if(b.dataset.v==='stock')carregaStock(); if(b.dataset.v==='nova')carregaMotas($('#n-mota'));
+  ['leads','nova','stock','config'].forEach(v=>$('#v-'+v).classList.toggle('hide',v!==b.dataset.v));
+  if(b.dataset.v==='leads')voltar(); if(b.dataset.v==='stock')carregaStock(); if(b.dataset.v==='nova'){carregaMotas($('#n-mota'));carregaClientes()} if(b.dataset.v==='config')carregaConfig();
 });
 
 function filtros(){
@@ -145,6 +167,7 @@ async function abre(id){
     if(m.estado==='descartada')return;
     if(m.estado==='rascunho'){
       const box=el('div','msg draft');box.append(el('div','small mut','Rascunho — não enviado'));
+      if(m.aviso)box.append(el('div','small err','⚠ Verificar antes de enviar: '+m.aviso));
       const ta=el('textarea');ta.value=m.texto;box.append(ta);
       const r=el('div','row');r.style.marginTop='8px';
       const cp=el('button','btn','Copiar');cp.onclick=async()=>{try{await navigator.clipboard.writeText(ta.value);cp.textContent='Copiado ✓'}catch{ta.select();document.execCommand('copy');cp.textContent='Copiado ✓'}};
@@ -163,10 +186,10 @@ async function abre(id){
 }
 $('#n-ok').onclick=async()=>{
   const b=$('#n-ok'),m=$('#n-msg');if(!$('#n-texto').value.trim()){m.textContent='Cola a mensagem.';return}
-  b.disabled=true;m.textContent='A preparar…';
-  try{const r=await api('/api/mensagens',{method:'POST',body:JSON.stringify({canal:$('#n-canal').value,mota_id:$('#n-mota').value||null,nome:$('#n-nome').value.trim()||null,telefone:$('#n-tel').value.trim()||null,texto:$('#n-texto').value})});
+  b.disabled=true;m.className='small mut';m.textContent='A preparar…';
+  try{const r=await api('/api/mensagens',{method:'POST',body:JSON.stringify({canal:$('#n-canal').value,lead_id:$('#n-lead').value||null,mota_id:$('#n-mota').value||null,nome:$('#n-nome').value.trim()||null,telefone:$('#n-tel').value.trim()||null,texto:$('#n-texto').value})});
     if(r.erro){m.textContent='Erro: '+r.erro;m.className='small err';b.disabled=false;return}
-    $('#n-texto').value='';m.textContent='';b.disabled=false;
+    $('#n-texto').value='';$('#n-lead').value='';$('#n-novo').classList.remove('hide');$('#n-nome').value='';$('#n-tel').value='';m.textContent='';m.className='small mut';b.disabled=false;
     document.querySelector('[data-v=leads]').click();abre(r.lead_id)}
   catch(e){m.textContent='Erro: '+e.message;m.className='small err';b.disabled=false}
 };
@@ -192,6 +215,21 @@ async function carregaMotas(sel,atual){
     rows.forEach(r=>{const o=el('option','',[r.modelo,r.mes_ano,r.km&&r.km+' km',r.preco?r.preco+' €':'sem preço'].filter(Boolean).join(' · '));o.value=r.id;sel.append(o)});
     sel.value=v||atual||''}catch{}
 }
+async function carregaClientes(){
+  const sel=$('#n-lead');
+  try{const rows=await api('/api/leads');const v=sel.value;
+    while(sel.options.length>1)sel.remove(1);
+    rows.filter(r=>!['vendida','perdida'].includes(r.estado)).forEach(r=>{const o=el('option','',[r.nome||r.telefone||('Cliente #'+r.id),r.mota_interesse,r.canal].filter(Boolean).join(' · '));o.value=r.id;sel.append(o)});
+    sel.value=[...sel.options].some(o=>o.value===v)?v:''}catch{}
+  $('#n-novo').classList.toggle('hide',!!sel.value);
+}
+$('#n-lead').onchange=()=>$('#n-novo').classList.toggle('hide',!!$('#n-lead').value);
+async function carregaConfig(){
+  try{const c=await api('/api/config');$('#c-instr').value=c.instrucoes||'';$('#c-tel').value=c.telefone_stand||'';$('#c-ass').value=c.assinatura_olx||''}catch(e){$('#c-msg').textContent='Erro: '+e.message}
+}
+$('#c-ok').onclick=async()=>{const m=$('#c-msg');m.className='small mut';m.textContent='A guardar…';
+  try{await api('/api/config',{method:'PUT',body:JSON.stringify({instrucoes:$('#c-instr').value,telefone_stand:$('#c-tel').value,assinatura_olx:$('#c-ass').value})});m.textContent='Guardado ✓';carregaConfig()}
+  catch(e){m.textContent='Erro: '+e.message;m.className='small err'}};
 $('#sync-ok').onclick=async()=>{const b=$('#sync-ok'),m=$('#sync-msg');b.disabled=true;m.textContent='A sincronizar…';
   try{const r=await api('/api/sync',{method:'POST'});m.textContent=r.motas+' motas ✓';carregaStock()}
   catch(e){m.textContent='Erro: '+e.message;m.className='small err'}b.disabled=false};
