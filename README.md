@@ -13,6 +13,7 @@ Assistente de leads do stand: recebe mensagens (OLX e WhatsApp), prepara um rasc
 - Cópia de segurança de leads e conversas (separador "Instruções").
 - Importação de conversas já existentes (separador "Instruções" ou `POST /api/importar`): só regista o histórico, sem rascunhos, e pode repetir-se sem duplicar.
 - Filtro de leads por mota, com o número de interessados em cada uma.
+- Mesmo cliente no OLX e no WhatsApp: o telefone escrito no chat do OLX fica guardado, e as mensagens desse número no WhatsApp entram na mesma lead. Quando não há telefone, a ficha sugere leads parecidas e permite juntá-las.
 - WhatsApp: endpoint `/webhook/whatsapp` pronto para a API oficial da Meta (só aceita mensagens assinadas).
 
 ## Variáveis (Railway → Variables)

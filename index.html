@@ -151,7 +151,7 @@ async function voltar(){
   rows.forEach(r=>{
     const c=el('div','card lead');
     const top=el('div','row');
-    top.append(el('strong','',r.nome||r.telefone||('Cliente #'+r.id)),el('span','tag '+r.classificacao,r.classificacao),el('span','tag mut',r.canal));
+    top.append(el('strong','',r.nome||r.telefone||('Cliente #'+r.id)),el('span','tag '+r.classificacao,r.classificacao));(r.canais||r.canal).split(',').forEach(c=>top.append(el('span','tag mut',c)));
     if(r.alertar)top.append(el('span','tag quente','⚠ avisar equipa'));
     if(r.rascunhos)top.append(el('span','tag','✎ '+r.rascunhos+' rascunho'));
     if(r.origem==='importada')top.append(el('span','tag mut','importada'));
@@ -161,12 +161,13 @@ async function voltar(){
     c.onclick=()=>abre(r.id);l.append(c)});
 }
 async function abre(id){
-  atual=id;const {lead,mensagens}=await api('/api/leads/'+id);
+  atual=id;const {lead,mensagens,ultimo_canal}=await api('/api/leads/'+id);
+  const variosCanais=new Set(mensagens.map(m=>m.canal)).size>1;
   $('#lista').classList.add('hide');$('#filtros').classList.add('hide');$('#f-mota').classList.add('hide');
   const f=$('#ficha');f.classList.remove('hide');f.replaceChildren();
   const back=el('button','btn sec','← Voltar');back.onclick=voltar;f.append(back);
   const h=el('div','card');
-  const top=el('div','row');top.append(el('strong','',lead.nome||'Sem nome'),el('span','tag '+lead.classificacao,lead.classificacao),el('span','tag mut',lead.canal));
+  const top=el('div','row');top.append(el('strong','',lead.nome||'Sem nome'),el('span','tag '+lead.classificacao,lead.classificacao));[...new Set(mensagens.map(m=>m.canal).concat(mensagens.length?[]:[lead.canal]))].forEach(c=>top.append(el('span','tag mut',c)));
   h.append(top);
   [['Telefone',lead.telefone],['Mota',lead.mota_interesse],['Quer ver',lead.quando_quer_ver],['Retoma',lead.retoma?'sim':null],['Financiamento',lead.financiamento?'sim':null]]
     .filter(x=>x[1]).forEach(([k,v])=>h.append(el('div','small',k+': '+v)));
@@ -190,15 +191,30 @@ async function abre(id){
       const en=el('button','btn sec','Marcar como enviada');en.onclick=async()=>{await api(`/api/mensagens/${m.id}/estado`,{method:'POST',body:JSON.stringify({estado:'enviada',texto:ta.value})});abre(id)};
       const de=el('button','btn sec','Descartar');de.onclick=async()=>{await api(`/api/mensagens/${m.id}/estado`,{method:'POST',body:JSON.stringify({estado:'descartada'})});abre(id)};
       r.append(cp,en,de);box.append(r);t.append(box);return}
-    const bl=el('div','msg '+(m.direcao==='inbound'?'in':'out'),m.texto);const dt=el('div','small',dataPt(m.criado_em));dt.style.opacity='.6';dt.style.marginTop='4px';bl.append(dt);t.append(bl);
+    const bl=el('div','msg '+(m.direcao==='inbound'?'in':'out'),m.texto);const dt=el('div','small',(variosCanais?m.canal+' · ':'')+dataPt(m.criado_em));dt.style.opacity='.6';dt.style.marginTop='4px';bl.append(dt);t.append(bl);
   });
   f.append(t);
   const n=el('div','card');n.append(el('label','','Nova mensagem do cliente nesta conversa'));
+  const cs=el('select');[['olx','Mensagem recebida no OLX'],['whatsapp','Mensagem recebida no WhatsApp']].forEach(([v,t])=>{const o=el('option','',t);o.value=v;cs.append(o)});cs.value=ultimo_canal||lead.canal;
   const ms=el('select');const o0=el('option','','— mota do anúncio (opcional) —');o0.value='';ms.append(o0);carregaMotas(ms);
   const ta=el('textarea');const go=el('button','btn','Gerar rascunho');go.style.marginTop='8px';
   go.onclick=async()=>{if(!ta.value.trim())return;go.disabled=true;go.textContent='A preparar…';
-    try{const r=await api('/api/mensagens',{method:'POST',body:JSON.stringify({canal:lead.canal,lead_id:id,mota_id:ms.value||null,texto:ta.value})});if(r.erro)alert(r.erro)}catch(e){alert(e.message)}abre(id)};
-  n.append(ms,ta,go);f.append(n);
+    try{const r=await api('/api/mensagens',{method:'POST',body:JSON.stringify({canal:cs.value,lead_id:id,mota_id:ms.value||null,texto:ta.value})});if(r.erro)alert(r.erro)}catch(e){alert(e.message)}abre(id)};
+  n.append(cs,ms,ta,go);f.append(n);
+  // juntar com outra lead (mesmo cliente noutro canal)
+  const jn=el('div','card');jn.append(el('strong','','É o mesmo cliente que outra lead?'));
+  jn.append(el('p','small mut','Por exemplo, começou no OLX e passou para o WhatsApp. Juntar passa toda a conversa para esta lead e apaga a outra.'));
+  const juntar=async(outro,nome)=>{if(!confirm('Juntar "'+(nome||'Cliente #'+outro)+'" a esta lead? A conversa passa para aqui e a outra lead deixa de existir.'))return;
+    try{await api('/api/leads/'+id+'/juntar',{method:'POST',body:JSON.stringify({com:outro})});abre(id)}catch(e){alert(e.message)}};
+  try{const sg=await api('/api/leads/'+id+'/sugestoes');
+    sg.forEach(s=>{const r=el('div','row');r.style.margin='6px 0';
+      r.append(el('span','small',(s.nome||s.telefone||'Cliente #'+s.id)+' · '+s.canal+(s.mota_interesse?' · '+s.mota_interesse:'')+' ('+s.motivos.join(', ')+')'));
+      const b=el('button','btn sec','Juntar');b.onclick=()=>juntar(s.id,s.nome);r.append(b);jn.append(r)});
+    if(sg.length)h.append(el('div','small err','⚠ Pode haver outra lead deste cliente (ver fim da página).'));}catch{}
+  const sj=el('select');const z=el('option','','— escolher outra lead —');z.value='';sj.append(z);
+  try{(await api('/api/leads')).filter(r=>r.id!==id).forEach(r=>{const o=el('option','',[r.nome||r.telefone||'Cliente #'+r.id,r.canais||r.canal,r.mota_interesse].filter(Boolean).join(' · '));o.value=r.id;o.dataset.nome=r.nome||'';sj.append(o)})}catch{}
+  const bj=el('button','btn sec','Juntar');bj.style.marginTop='8px';bj.onclick=()=>{if(sj.value)juntar(Number(sj.value),sj.selectedOptions[0].dataset.nome)};
+  jn.append(sj,bj);f.append(jn);
 }
 $('#n-ok').onclick=async()=>{
   const b=$('#n-ok'),m=$('#n-msg');if(!$('#n-texto').value.trim()){m.textContent='Cola a mensagem.';return}

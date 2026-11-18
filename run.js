@@ -228,6 +228,52 @@ ctx = buildUserContent({ canal: 'olx', lead: {}, historico: [], texto: 'olá' })
 assert.equal((await post('/api/importar', { conversas: [] })).s, 400); assert.equal((await post('/api/importar', {})).s, 400); assert.equal((await post('/api/importar', { conversas: Array(201).fill(conv[2]) })).s, 400);
 assert.equal((await post('/api/importar', { conversas: conv }, { headers: { 'sec-fetch-site': 'cross-site' } })).s, 403); ok('importação: pedidos vazios, excessivos ou de outro site recusados');
 
+// ---------- mesmo cliente no OLX e no WhatsApp ----------
+{
+  const { telefoneNoTexto } = await import('./juntar.js');
+  assert.equal(telefoneNoTexto('o meu número é 912 345 678, obrigado'), '912345678'); assert.equal(telefoneNoTexto('+351 936-111-222'), '936111222');
+  assert.equal(telefoneNoTexto('liguem para 265 123 456'), '265123456'); assert.equal(telefoneNoTexto('envio para o 927887107'), null);
+  assert.equal(telefoneNoTexto('a mota tem 18500 km e custa 7900'), null); assert.equal(telefoneNoTexto('IBAN PT50 0035 0000 1234 5678 9012 3'), null); ok('telefone escrito no chat é detetado (sem o do stand, km ou preços)');
+
+  // começa no OLX (sem telefone) → cliente dá o número → depois escreve no WhatsApp desse número
+  r = await post('/api/mensagens', { canal: 'olx', nome: 'Bruno', mota_id: 'AA-11-BB', texto: 'Tem interesse em falar por WhatsApp? O meu número é 961 234 567' }); const bruno = r.b.lead_id;
+  r = await j('/api/leads/' + bruno); assert.equal(r.b.lead.telefone_norm, '961234567');
+  process.env.WHATSAPP_APP_SECRET = 'segredo-meta';
+  assert.equal((await wa(corpoWa('wamid.b1', '351961234567', 'Bruno Silva', { type: 'text', text: { body: 'Olá, sou o Bruno do OLX' } }), 'segredo-meta')).status, 200); await new Promise(r => setTimeout(r, 300));
+  r = await j('/api/leads/' + bruno); assert.deepEqual([...new Set(r.b.mensagens.map(m => m.canal))].sort(), ['olx', 'whatsapp']); assert.equal(r.b.ultimo_canal, 'whatsapp');
+  assert.ok(r.b.mensagens.find(m => m.estado === 'rascunho' && m.canal === 'whatsapp')); ok('número dado no OLX → mensagem do WhatsApp entra na mesma lead');
+  r = await j('/api/leads'); assert.equal(r.b.find(l => l.id === bruno).canais.split(',').sort().join(), 'olx,whatsapp');
+
+  // começa no OLX sem número → WhatsApp de outro número → sugestão + juntar à mão
+  r = await post('/api/mensagens', { canal: 'olx', nome: 'Helena Costa', mota_id: 'AA-11-BB', texto: 'A MT-07 ainda está disponível?' }); const helenaOlx = r.b.lead_id;
+  await post(`/api/mensagens/${(await j('/api/leads/' + helenaOlx)).b.mensagens.find(m => m.estado === 'rascunho').id}/estado`, { estado: 'enviada' });
+  assert.equal((await wa(corpoWa('wamid.h1', '351933000111', 'Helena', { type: 'text', text: { body: 'Boa tarde, falámos no OLX sobre a MT-07' } }), 'segredo-meta')).status, 200); await new Promise(r => setTimeout(r, 300));
+  r = await j('/api/leads'); const helenaWa = r.b.find(l => l.telefone === '351933000111').id; assert.notEqual(helenaWa, helenaOlx);
+  r = await j(`/api/leads/${helenaWa}/sugestoes`); assert.ok(r.b.some(s => s.id === helenaOlx && s.motivos.includes('mesmo nome, noutro canal')));
+  assert.ok(!(await j(`/api/leads/${helenaWa}/sugestoes`)).b.some(s => s.id === bruno)); ok('lead do WhatsApp sugere a lead do OLX com o mesmo nome');
+  const nMsgs = (await j('/api/leads/' + helenaOlx)).b.mensagens.length + (await j('/api/leads/' + helenaWa)).b.mensagens.length;
+  r = await post(`/api/leads/${helenaWa}/juntar`, { com: helenaOlx }); assert.equal(r.s, 200);
+  assert.equal((await j('/api/leads/' + helenaOlx)).s, 404); r = await j('/api/leads/' + helenaWa);
+  assert.equal(r.b.mensagens.length, nMsgs); assert.equal(r.b.mensagens.filter(m => m.estado === 'rascunho').length, 1); assert.match(r.b.lead.mota_interesse, /MT-07/);
+  assert.equal(r.b.mensagens[0].canal, 'olx'); ok('juntar leads: conversa toda numa só lead, por ordem, com um só rascunho');
+  assert.equal((await post(`/api/leads/${helenaWa}/juntar`, { com: helenaWa })).s, 400); assert.equal((await post(`/api/leads/${helenaWa}/juntar`, { com: 999999 })).s, 404);
+  assert.equal((await post(`/api/leads/${helenaWa}/juntar`, { com: bruno }, { headers: { 'sec-fetch-site': 'cross-site' } })).s, 403); ok('juntar: pedidos inválidos ou de outro site recusados');
+
+  // lead importada do OLX, juntada com a do WhatsApp: reimportar não volta a criá-la
+  const thread = { canal: 'olx', externo_id: 'thread-joana', nome: 'Joana', mensagens: [{ direcao: 'inbound', texto: 'Ainda tem a mota?', data: '2026-11-10T10:00:00Z' }] };
+  await post('/api/importar', { conversas: [thread] }); const joanaOlx = (await j('/api/leads')).b.find(l => l.nome === 'Joana').id;
+  assert.equal((await wa(corpoWa('wamid.j1', '351966555444', 'Joana', { type: 'text', text: { body: 'Olá, é a Joana' } }), 'segredo-meta')).status, 200); await new Promise(r => setTimeout(r, 300));
+  const joanaWa = (await j('/api/leads')).b.find(l => l.telefone === '351966555444').id;
+  await post(`/api/leads/${joanaWa}/juntar`, { com: joanaOlx });
+  thread.mensagens.push({ direcao: 'inbound', texto: 'Posso ligar?', data: '2026-11-11T10:00:00Z' });
+  r = await post('/api/importar', { conversas: [thread] }); assert.equal(r.b.leads_novas, 0); assert.equal(r.b.mensagens_novas, 1);
+  r = await j('/api/leads'); assert.equal(r.b.filter(l => l.nome === 'Joana').length, 1); assert.equal((await j('/api/leads/' + joanaWa)).b.mensagens.filter(m => m.direcao === 'inbound').length, 3); ok('conversa do OLX juntada continua a entrar na lead certa em novas importações');
+
+  // telefone escrito numa conversa importada
+  r = await post('/api/importar', { conversas: [{ canal: 'olx', externo_id: 'thread-paulo', nome: 'Paulo', mensagens: [{ direcao: 'inbound', texto: 'Liguem-me: 912 000 333', data: '2026-11-12T10:00:00Z' }] }] });
+  assert.equal((await j('/api/leads')).b.find(l => l.nome === 'Paulo').telefone_norm, '912000333'); ok('importação: telefone escrito no chat fica na lead');
+}
+
 // ---------- apagar e cópia de segurança ----------
 r = await j('/api/export'); assert.equal(r.s, 200); assert.match(r.h.get('content-disposition'), /attachment; filename="bikebound-leads-\d{4}-\d{2}-\d{2}\.json"/); assert.ok(r.b.leads.length >= 5 && r.b.mensagens.length >= 8); assert.equal((await fetch(base + '/api/export')).status, 401); ok('cópia de segurança com leads e conversas (só com palavra-passe)');
 assert.equal((await j('/api/leads/' + lid, { method: 'DELETE' })).s, 200); assert.equal((await j('/api/leads/' + lid)).s, 404); assert.equal((await j('/api/leads/' + lid, { method: 'DELETE' })).s, 404);

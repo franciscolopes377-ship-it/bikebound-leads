@@ -2,6 +2,7 @@ import { db, normTel } from './db.js';
 import { askClaude, aplicarAssinatura } from './assistant.js';
 import { getStock } from './stock.js';
 import { avisosRascunho } from './guard.js';
+import { registaTelefoneDoTexto } from './juntar.js';
 
 const CANAIS = ['whatsapp', 'olx'];
 const MAX_TEXTO = 4000;
@@ -58,6 +59,7 @@ export function registarSemResposta({ canal, nome, telefone, texto, externo_id }
   const lead = findOrCreateLead({ canal, nome, telefone });
   const id = guardaInbound(lead, canal, t, externo_id);
   if (id == null) return { lead_id: lead.id, duplicada: true };
+  registaTelefoneDoTexto(lead.id, t);
   db.prepare('UPDATE leads SET alertar=1, resumo_equipa=COALESCE(resumo_equipa, ?) WHERE id=?').run(t, lead.id);
   return { lead_id: lead.id, mensagem_id: id };
 }
@@ -67,6 +69,7 @@ export async function processInbound({ canal, nome, telefone, texto, lead_id, mo
   const lead0 = findOrCreateLead({ canal, nome, telefone, lead_id });
   const inboundId = guardaInbound(lead0, canal, t, externo_id);
   if (inboundId == null) return { lead_id: lead0.id, duplicada: true };
+  registaTelefoneDoTexto(lead0.id, t);
   return emFila(lead0.id, () => responder(lead0.id, inboundId, canal, t, mota_id));
 }
 

@@ -59,6 +59,7 @@ db.exec(`
 CREATE UNIQUE INDEX IF NOT EXISTS idx_msg_externo ON mensagens(externo_id) WHERE externo_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_lead_tel ON leads(telefone_norm);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_lead_externo ON leads(externo_id) WHERE externo_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS lead_externos (externo_id TEXT PRIMARY KEY, lead_id INTEGER NOT NULL);
 `);
 
 // Telefone só com dígitos, sem indicativo de Portugal: "+351 912 345 678" e "912345678" são o mesmo cliente.

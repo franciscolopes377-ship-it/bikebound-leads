@@ -9,6 +9,7 @@ import { syncStock, syncStatus, startAutoSync } from './sync.js';
 import { processInbound, registarSemResposta } from './leads.js';
 import { instrucoesStand, assinaturaOlx, telefoneStand } from './assistant.js';
 import { importarConversas } from './import.js';
+import { sugestoes, juntarLeads } from './juntar.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -126,19 +127,25 @@ async function api(req, res, url) {
     const c = url.searchParams.get('classificacao');
     const rows = db.prepare(`SELECT l.*,
         (SELECT COUNT(*) FROM mensagens m WHERE m.lead_id=l.id AND m.estado='rascunho') AS rascunhos,
-        (SELECT texto FROM mensagens m WHERE m.lead_id=l.id AND m.direcao='inbound' ORDER BY id DESC LIMIT 1) AS ultima
+        (SELECT texto FROM mensagens m WHERE m.lead_id=l.id AND m.direcao='inbound' ORDER BY id DESC LIMIT 1) AS ultima,
+        (SELECT GROUP_CONCAT(DISTINCT canal) FROM mensagens m WHERE m.lead_id=l.id) AS canais,
+        (SELECT canal FROM mensagens m WHERE m.lead_id=l.id AND m.direcao='inbound' ORDER BY criado_em DESC, id DESC LIMIT 1) AS ultimo_canal
       FROM leads l ${c ? 'WHERE classificacao=?' : ''} ORDER BY alertar DESC, atualizado_em DESC`).all(...(c ? [c] : []));
     return send(res, 200, rows);
   }
+
+  if (M === 'GET' && (m = p.match(/^\/api\/leads\/(\d+)\/sugestoes$/))) return send(res, 200, sugestoes(m[1]));
+  if (M === 'POST' && (m = p.match(/^\/api\/leads\/(\d+)\/juntar$/))) return send(res, 200, juntarLeads(m[1], (await json(req)).com));
 
   if ((m = p.match(/^\/api\/leads\/(\d+)$/))) {
     const id = m[1];
     const lead = db.prepare('SELECT * FROM leads WHERE id=?').get(id);
     if (!lead) return send(res, 404, { erro: 'Lead não encontrada' });
-    if (M === 'GET') return send(res, 200, { lead, mensagens: db.prepare('SELECT * FROM mensagens WHERE lead_id=? ORDER BY criado_em, id').all(id) });
+    if (M === 'GET') return send(res, 200, { lead, ultimo_canal: db.prepare("SELECT canal FROM mensagens WHERE lead_id=? AND direcao='inbound' ORDER BY criado_em DESC, id DESC LIMIT 1").get(id)?.canal || lead.canal, mensagens: db.prepare('SELECT * FROM mensagens WHERE lead_id=? ORDER BY criado_em, id').all(id) });
     if (M === 'DELETE') {
       db.exec('BEGIN');
       try {
+        db.prepare('DELETE FROM lead_externos WHERE lead_id=?').run(id);
         db.prepare('DELETE FROM mensagens WHERE lead_id=?').run(id);
         db.prepare('DELETE FROM leads WHERE id=?').run(id);
         db.exec('COMMIT');

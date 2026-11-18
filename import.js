@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { db, normTel } from './db.js';
 import { getStock } from './stock.js';
+import { telefoneNoTexto } from './juntar.js';
 
 // Importação de conversas já existentes (por exemplo do OLX). Só regista: não gera rascunhos nem envia nada.
 // Pode repetir-se com as mesmas conversas: só entram as mensagens que ainda não existem.
@@ -50,16 +51,17 @@ export function importarConversas(conversas) {
       if (erro) { res.erros.push({ conversa: i + 1, nome: str(c?.nome, 60), erro }); return; }
       const primeira = c.mensagens[0];
       const ext = 'imp:' + (str(c.externo_id, 200) || sha([c.canal, c.nome, primeira.data, primeira.texto].join('|')));
-      const tel = normTel(c.telefone);
+      const tel = normTel(c.telefone) || c.mensagens.filter(m => m.direcao === 'inbound').map(m => telefoneNoTexto(m.texto)).find(Boolean) || '';
       const mota = encontraMota(c, stock);
       const motaTxt = mota ? [mota.modelo, mota.mes_ano].filter(Boolean).join(' ') : str(c.mota, 200);
 
-      let lead = db.prepare('SELECT * FROM leads WHERE externo_id=?').get(ext);
+      let lead = db.prepare('SELECT * FROM leads WHERE externo_id=?').get(ext)
+        || db.prepare('SELECT l.* FROM lead_externos x JOIN leads l ON l.id=x.lead_id WHERE x.externo_id=?').get(ext);
       if (!lead && tel.length >= 9) lead = db.prepare('SELECT * FROM leads WHERE telefone_norm=? ORDER BY id DESC').get(tel);
       const nova = !lead;
       if (nova) {
         const r = db.prepare("INSERT INTO leads (canal, nome, telefone, telefone_norm, externo_id, origem, mota_interesse, criado_em) VALUES (?,?,?,?,?,'importada',?,COALESCE(?, CURRENT_TIMESTAMP))")
-          .run(c.canal, str(c.nome, 120), str(c.telefone, 40), tel || null, ext, motaTxt, dataSql(primeira.data));
+          .run(c.canal, str(c.nome, 120), str(c.telefone, 40) || tel || null, tel || null, ext, motaTxt, dataSql(primeira.data));
         lead = db.prepare('SELECT * FROM leads WHERE id=?').get(r.lastInsertRowid);
       }
 
@@ -73,13 +75,13 @@ export function importarConversas(conversas) {
 
       // Campos opcionais só são gravados quando vêm preenchidos; nunca apagam o que já existe.
       db.prepare(`UPDATE leads SET
-          externo_id=COALESCE(externo_id, ?), nome=COALESCE(nome, ?), telefone=COALESCE(telefone, ?), telefone_norm=COALESCE(telefone_norm, ?),
+          externo_id=CASE WHEN externo_id IS NULL AND NOT EXISTS (SELECT 1 FROM lead_externos WHERE externo_id=?) THEN ? ELSE externo_id END, nome=COALESCE(nome, ?), telefone=COALESCE(telefone, ?), telefone_norm=COALESCE(telefone_norm, ?),
           mota_interesse=COALESCE(?, mota_interesse), classificacao=COALESCE(?, classificacao), estado=COALESCE(?, estado),
           resumo_equipa=COALESCE(?, resumo_equipa), quando_quer_ver=COALESCE(?, quando_quer_ver),
           retoma=MAX(retoma, ?), financiamento=MAX(financiamento, ?),
           atualizado_em=CASE WHEN ? IS NOT NULL AND ? > atualizado_em OR ? = 1 THEN COALESCE(?, atualizado_em) ELSE atualizado_em END
         WHERE id=?`)
-        .run(ext, str(c.nome, 120), str(c.telefone, 40), tel || null,
+        .run(ext, ext, str(c.nome, 120), str(c.telefone, 40) || tel || null, tel || null,
           motaTxt, c.classificacao ?? null, c.estado ?? null, str(c.resumo, 300), str(c.quando_quer_ver, 200),
           c.retoma ? 1 : 0, c.financiamento ? 1 : 0,
           ultima, ultima, nova ? 1 : 0, ultima, lead.id);
