@@ -19,13 +19,14 @@ FONTES
 - Se faltar um dado, ou a mensagem do cliente for ambígua, diz que a equipa confirma, põe alertar_equipa = true e assinala a dúvida no resumo.
 
 FORMATO (se as instruções não disserem outra coisa)
-- Primeira mensagem da conversa: "Bom dia [Nome], como está?", "Boa tarde [Nome], como está?" ou "Boa noite [Nome], como está?", conforme a HORA LOCAL (bom dia até às 12h, boa tarde até às 20h, boa noite depois).
+- Começa sempre pela SAUDAÇÃO A USAR indicada (só "Bom dia", "Boa tarde" ou "Boa noite"; nunca "Boa manhã" nem "Olá"). Primeira mensagem da conversa: "[Saudação] [Nome], como está?".
 - Mensagens seguintes: só "Bom dia [Nome]," (ou boa tarde/boa noite), sem "como está?".
 - Usa o nome do LEAD ATUAL só se for um nome de pessoa; se for um nome de utilizador (ex.: "ErcgeG") ou não houver nome, não uses nome. Se não souberes o género, evita formas com género.
 - Termina normalmente com uma pergunta, exceto quando a resposta-modelo indicar "sem pergunta".
 - Não peças desculpa pela demora. Nunca digas que o stand "vai indicar" ou sugerir motas.
 - Não escrevas assinatura nem despedida: é acrescentada automaticamente. Não escrevas matrículas na resposta.
 - Se houver mensagens anteriores do cliente ainda sem resposta do stand, responde a todas na mesma mensagem.
+- Usa uma só resposta-modelo por tema e não repitas informação (ex.: "sujeito a aprovação" uma vez). Termina com a pergunta da resposta-modelo usada; se usares várias, fica só a pergunta da última.
 
 COMO RESPONDER (quando as instruções não cobrirem o caso)
 - Se receberes "MOTA EM CAUSA", o cliente refere-se a essa mota (vem do anúncio): responde sobre ela.
@@ -93,6 +94,18 @@ function stockAsText() {
   return s.map(m => `- ${linhaMota(m)}`).join('\n');
 }
 
+// Saudação certa para a hora de Lisboa: bom dia até às 12h, boa tarde até às 20h, boa noite depois.
+export function saudacaoHora(data = new Date()) {
+  const h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Lisbon', hour: '2-digit', hourCycle: 'h23' }).format(data));
+  return h < 12 ? 'Bom dia' : h < 20 ? 'Boa tarde' : 'Boa noite';
+}
+
+// Corrige a saudação no início do rascunho (ex.: "Boa manhã" → "Bom dia"), mantendo o resto (nome, "como está?").
+export function corrigeSaudacao(texto, data = new Date()) {
+  const certa = saudacaoHora(data);
+  return String(texto || '').replace(/^\s*(bom\s+dia|boa\s+tarde|boa\s+noite|boa\s+manh[ãa]|ol[áa])\b/i, certa);
+}
+
 const lisbonNow = () => new Intl.DateTimeFormat('pt-PT', {
   timeZone: 'Europe/Lisbon', weekday: 'long', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'
 }).format(new Date());
@@ -112,8 +125,10 @@ export function buildUserContent({ canal, lead, historico, texto, mota }) {
   const h = historico.map(m => `${m.direcao === 'inbound' ? 'CLIENTE' : 'STAND'}: ${limpa(m.direcao === 'inbound' ? m.texto : semAssinatura(m.texto))}`).join('\n') || '(primeira mensagem)';
   const instr = instrucoesStand();
   const ex = exemplosAprovados(canal);
+  const primeira = !historico.some(m => m.direcao === 'outbound');
   return `CANAL: ${canal}
 HORA LOCAL: ${lisbonNow()}
+SAUDAÇÃO A USAR: começa exatamente por "${saudacaoHora()}"${primeira ? ' (primeira mensagem da conversa: acrescenta o nome, se for nome de pessoa, e "como está?")' : ' (não é a primeira mensagem: sem "como está?")'}
 LEAD ATUAL: ${JSON.stringify({
     nome: lead.nome, telefone: lead.telefone, mota_interesse: lead.mota_interesse,
     quando_quer_ver: lead.quando_quer_ver, retoma: !!lead.retoma, financiamento: !!lead.financiamento,
@@ -204,7 +219,7 @@ export async function askClaude(ctx, { fetchImpl = fetch, pausas = [1000, 3000] 
 
 // Assinatura acrescentada pelo programa (não pelo modelo), para ser sempre igual, no OLX e no WhatsApp.
 export function aplicarAssinatura(texto, canal) {
-  const base = semAssinatura(texto);
+  const base = corrigeSaudacao(semAssinatura(texto));
   const ass = assinaturaOlx();
   return ass ? `${base}\n\n${ass}` : base;
 }

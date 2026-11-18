@@ -91,6 +91,23 @@ assert.equal(ctx.match(/<\/mensagem_cliente>/g).length, 1); assert.match(ctx, /p
 assert.match(sistema(), /927887107/); assert.ok(!sistema().includes('916808800')); assert.match(sistema(), /seguro de vida/); ok('regras: contacto atual e financiamento sem comissão/seguro');
 assert.equal(aplicarAssinatura('Olá\n\nMelhores cumprimentos, X', 'olx'), 'Olá\n\nMelhores cumprimentos,\nFrancisco Canelas\n927887107\nBIKEBOUND'); assert.equal(aplicarAssinatura('Olá\nMelhores cumprimentos,\nFrancisco', 'whatsapp'), 'Olá\n\nMelhores cumprimentos,\nFrancisco Canelas\n927887107\nBIKEBOUND'); ok('assinatura em 4 linhas, nunca duplicada, no OLX e no WhatsApp');
 
+// saudação certa para a hora
+{
+  const { saudacaoHora, corrigeSaudacao } = await import('./assistant.js');
+  const inv = new Date('2026-01-15T10:21:00Z'), ver = new Date('2026-07-15T10:21:00Z');
+  assert.equal(saudacaoHora(inv), 'Bom dia'); assert.equal(saudacaoHora(new Date('2026-01-15T12:00:00Z')), 'Boa tarde'); assert.equal(saudacaoHora(new Date('2026-01-15T20:30:00Z')), 'Boa noite');
+  assert.equal(saudacaoHora(new Date('2026-07-15T10:59:00Z')), 'Bom dia'); assert.equal(saudacaoHora(new Date('2026-07-15T11:00:00Z')), 'Boa tarde'); // verão: UTC+1
+  assert.equal(corrigeSaudacao('Boa manhã, como está? Sim, está disponível.', inv), 'Bom dia, como está? Sim, está disponível.');
+  assert.equal(corrigeSaudacao('Boa tarde João, como está?', inv), 'Bom dia João, como está?');
+  assert.equal(corrigeSaudacao('Olá Ana, tudo bem?', new Date('2026-01-15T21:00:00Z')), 'Boa noite Ana, tudo bem?');
+  assert.equal(corrigeSaudacao('Sim, a mota é nacional.', inv), 'Sim, a mota é nacional.');
+  assert.equal(corrigeSaudacao('Bom dia, boa tarde não', ver), 'Bom dia, boa tarde não');
+  let c = buildUserContent({ canal: 'olx', lead: {}, historico: [], texto: 'olá' }); assert.match(c, /SAUDAÇÃO A USAR: começa exatamente por "(Bom dia|Boa tarde|Boa noite)" \(primeira mensagem/);
+  c = buildUserContent({ canal: 'olx', lead: {}, historico: [{ direcao: 'inbound', texto: 'a' }, { direcao: 'outbound', texto: 'b' }], texto: 'olá' }); assert.match(c, /não é a primeira mensagem: sem "como está\?"/);
+  assert.match(sistema(), /nunca "Boa manhã"/); assert.match(sistema(), /uma só resposta-modelo por tema/);
+  ok('saudação: Bom dia/Boa tarde/Boa noite pela hora de Lisboa, corrigida no rascunho');
+}
+
 // instruções editáveis
 r = await j('/api/config', { method: 'PUT', body: JSON.stringify({ instrucoes: 'Horário: seg a sex, 10h-19h.', telefone_stand: '900000001', assinatura_olx: 'Cumprimentos, Stand' }) }); assert.equal(r.s, 200);
 r = await j('/api/config'); assert.equal(r.b.instrucoes, 'Horário: seg a sex, 10h-19h.');
