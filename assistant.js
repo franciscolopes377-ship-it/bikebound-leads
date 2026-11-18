@@ -103,7 +103,7 @@ export function saudacaoHora(data = new Date()) {
 // Corrige a saudação no início do rascunho (ex.: "Boa manhã" → "Bom dia"), mantendo o resto (nome, "como está?").
 export function corrigeSaudacao(texto, data = new Date()) {
   const certa = saudacaoHora(data);
-  return String(texto || '').replace(/^\s*(bom\s+dia|boa\s+tarde|boa\s+noite|boa\s+manh[ãa]|ol[áa])\b/i, certa);
+  return String(texto || '').replace(/^\s*(bom\s+dia|boa\s+tarde|boa\s+noite|boa\s+manh[ãa]|ol[áa])(?=[\s,.!?;:]|$)/iu, certa);
 }
 
 const lisbonNow = () => new Intl.DateTimeFormat('pt-PT', {
