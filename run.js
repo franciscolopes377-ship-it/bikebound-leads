@@ -225,7 +225,7 @@ r = await post('/api/importar', { conversas: conv.slice(0, 3) }); assert.equal(r
 r = await j('/api/leads/' + tiago.id); assert.equal(r.b.mensagens.length, 3); assert.equal(r.b.lead.classificacao, 'quente'); assert.equal(r.b.lead.resumo_equipa, 'Perguntou pelo preço'); ok('repetir a importação não duplica: só entram mensagens novas');
 r = await post('/api/mensagens', { canal: 'olx', lead_id: tiago.id, texto: 'Ainda dá para sábado?' }); assert.ok(r.b.rascunho_id); ok('lead importada continua a conversa normalmente (rascunho com o histórico)');
 ctx = buildUserContent({ canal: 'olx', lead: {}, historico: [], texto: 'olá' }); assert.match(ctx, /Sim, está disponível/); ok('respostas antigas importadas servem de referência de tom');
-assert.equal((await post('/api/importar', { conversas: [] })).s, 400); assert.equal((await post('/api/importar', {})).s, 400); assert.equal((await post('/api/importar', { conversas: Array(201).fill(conv[2]) })).s, 400);
+assert.equal((await post('/api/importar', { conversas: [] })).s, 400); assert.equal((await post('/api/importar', {})).s, 400); assert.equal((await post('/api/importar', { conversas: Array(1001).fill(conv[2]) })).s, 400);
 assert.equal((await post('/api/importar', { conversas: conv }, { headers: { 'sec-fetch-site': 'cross-site' } })).s, 403); ok('importação: pedidos vazios, excessivos ou de outro site recusados');
 
 // ---------- mesmo cliente no OLX e no WhatsApp ----------

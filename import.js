@@ -9,7 +9,7 @@ import { telefoneNoTexto } from './juntar.js';
 const CANAIS = ['olx', 'whatsapp'];
 const CLASSES = ['quente', 'morno', 'frio', 'retoma'];
 const ESTADOS = ['novo', 'em_curso', 'visita_marcada', 'vendida', 'perdida'];
-const MAX_CONVERSAS = 200, MAX_MENSAGENS = 500;
+const MAX_CONVERSAS = 1000, MAX_MENSAGENS = 500;
 
 const str = (v, n) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : null);
 const sha = t => createHash('sha256').update(t, 'utf8').digest('hex').slice(0, 20);
