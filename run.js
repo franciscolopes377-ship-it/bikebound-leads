@@ -364,6 +364,12 @@ const { execFileSync } = await import('node:child_process');
 const saida = execFileSync(process.execPath, ['--no-warnings', '-e', "import('./db.js').then(({db})=>{const l=db.prepare('SELECT * FROM leads').get();const c=db.prepare('PRAGMA table_info(mensagens)').all().map(x=>x.name);console.log(JSON.stringify({tel:l.telefone_norm,nome:l.nome,c}))})"], { env: { ...process.env, DB_PATH: velha }, cwd: import.meta.dirname }).toString();
 const mig = JSON.parse(saida); assert.equal(mig.tel, '911222333'); assert.equal(mig.nome, 'Ricardo'); assert.ok(['externo_id', 'aviso', 'texto_original'].every(c => mig.c.includes(c))); ok('base de dados da versão anterior é atualizada sem perder dados');
 
+// ---------- ordem da lista: mensagem mais recente do cliente primeiro ----------
+await post('/api/importar', { conversas: [{ canal: 'olx', externo_id: 'ord-velha', nome: 'Antiga', mensagens: [{ direcao: 'inbound', texto: 'olá', data: '2026-01-01T10:00:00Z' }] }] });
+r = await post('/api/mensagens', { canal: 'olx', nome: 'Recente', texto: 'Ainda tem a mota?' });
+r = await j('/api/leads'); assert.ok(r.b.findIndex(l => l.nome === 'Recente') < r.b.findIndex(l => l.nome === 'Antiga'));
+const tempos = r.b.map(l => l.ultima_cliente_em || l.atualizado_em); assert.ok(tempos.every((t, i) => i === 0 || t <= tempos[i - 1])); ok('lista: a mensagem de cliente mais recente aparece no topo');
+
 // ---------- limite de tentativas (no fim: bloqueia este endereço) ----------
 _limpaFalhas();
 for (let i = 0; i < 10; i++) assert.equal((await fetch(base + '/api/leads', { headers: basic('tentativa' + i) })).status, 401);

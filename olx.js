@@ -195,7 +195,7 @@ async function correr({ fetchImpl = fetch, pausa = 120, maxThreads = 3000, gerar
   }
 }
 
-export function startOlxSync(minutos = 5) {
+export function startOlxSync(minutos = 2) {
   const corre = () => { if (olxConfigurado() && olxStatus().ligado) syncOlx().catch(e => console.error('sync OLX:', e.message)); };
   setTimeout(corre, 15000);
   setInterval(corre, minutos * 60 * 1000);

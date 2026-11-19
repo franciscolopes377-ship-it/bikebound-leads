@@ -136,7 +136,12 @@ async function api(req, res, url) {
     return send(res, 200, pagina('Ligado ao OLX ✓', 'As conversas estão a ser importadas em segundo plano (pode demorar alguns minutos). Nada é enviado aos clientes.'), 'text/html');
   }
   if (p === '/api/olx') { if (M === 'GET') return send(res, 200, olxStatus()); }
-  if (M === 'POST' && p === '/api/olx/sync') { syncOlx().catch(() => {}); return send(res, 200, olxStatus()); }
+  if (M === 'POST' && p === '/api/olx/sync') {
+    const espera = url.searchParams.get('esperar') === '1';
+    const pr = syncOlx().catch(() => {});
+    if (espera) await Promise.race([pr, new Promise(r => setTimeout(r, 25000))]);
+    return send(res, 200, olxStatus());
+  }
   if (M === 'POST' && p === '/api/olx/desligar') { desligar(); return send(res, 200, olxStatus()); }
 
   if (M === 'GET' && p === '/api/leads') {
@@ -145,8 +150,9 @@ async function api(req, res, url) {
         (SELECT COUNT(*) FROM mensagens m WHERE m.lead_id=l.id AND m.estado='rascunho') AS rascunhos,
         (SELECT texto FROM mensagens m WHERE m.lead_id=l.id AND m.direcao='inbound' ORDER BY id DESC LIMIT 1) AS ultima,
         (SELECT GROUP_CONCAT(DISTINCT canal) FROM mensagens m WHERE m.lead_id=l.id) AS canais,
-        (SELECT canal FROM mensagens m WHERE m.lead_id=l.id AND m.direcao='inbound' ORDER BY criado_em DESC, id DESC LIMIT 1) AS ultimo_canal
-      FROM leads l ${c ? 'WHERE classificacao=?' : ''} ORDER BY alertar DESC, atualizado_em DESC`).all(...(c ? [c] : []));
+        (SELECT canal FROM mensagens m WHERE m.lead_id=l.id AND m.direcao='inbound' ORDER BY criado_em DESC, id DESC LIMIT 1) AS ultimo_canal,
+        (SELECT MAX(criado_em) FROM mensagens m WHERE m.lead_id=l.id AND m.direcao='inbound') AS ultima_cliente_em
+      FROM leads l ${c ? 'WHERE classificacao=?' : ''} ORDER BY COALESCE(ultima_cliente_em, l.atualizado_em) DESC, l.id DESC`).all(...(c ? [c] : []));
     return send(res, 200, rows);
   }
 

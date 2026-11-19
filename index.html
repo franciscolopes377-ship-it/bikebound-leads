@@ -143,7 +143,8 @@ document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
 
 function filtros(){
   const f=$('#filtros');f.replaceChildren();
-  [['','Todas'],['quente','Quentes'],['morno','Mornas'],['frio','Frias'],['retoma','Retomas']].forEach(([v,t])=>{
+  const at=el('button','chip','↻ Atualizar');at.onclick=atualizarAgora;f.append(at);
+  [['','Todas'],['tratar','Por tratar'],['quente','Quentes'],['morno','Mornas'],['frio','Frias'],['retoma','Retomas']].forEach(([v,t])=>{
     const b=el('button','chip'+(filtro===v?' on':''),t);b.onclick=()=>{filtro=v;voltar()};f.append(b)});
 }
 async function voltar(){
@@ -155,8 +156,9 @@ async function voltar(){
   const sm=$('#f-mota');while(sm.options.length>1)sm.remove(1);
   Object.entries(cont).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).forEach(([k,n])=>{const o=el('option','',k+' ('+n+')');o.value=k;sm.append(o)});
   if(fMota&&!cont[fMota])fMota='';sm.value=fMota;
-  const rows=todas.filter(r=>(!filtro||r.classificacao===filtro)&&(!fMota||r.mota_interesse===fMota));
-  l.append(el('p','small mut',rows.length+(rows.length===1?' lead':' leads')));
+  const rows=todas.filter(r=>(!filtro||(filtro==='tratar'?(r.alertar||r.rascunhos):r.classificacao===filtro))&&(!fMota||r.mota_interesse===fMota));
+  const ult=$('#ult-atual');if(ult)ult.textContent='Atualizado às '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+  const cab=el('p','small mut',rows.length+(rows.length===1?' lead':' leads')+' · mais recentes primeiro · ');cab.append(el('span','','')); cab.lastChild.id='ult-atual'; cab.lastChild.textContent='Atualizado às '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}); l.append(cab);
   if(!rows.length)l.append(el('p','mut',todas.length?'Nenhuma lead com estes filtros.':'Ainda sem leads.'));
   rows.forEach(r=>{
     const c=el('div','card lead');
@@ -167,7 +169,8 @@ async function voltar(){
     if(r.origem==='importada')top.append(el('span','tag mut','importada'));
     c.append(top);
     if(r.resumo_equipa)c.append(el('div','small',r.resumo_equipa));
-    c.append(el('div','small mut',(r.mota_interesse?r.mota_interesse+' · ':'')+'estado: '+r.estado.replace('_',' ')+(r.atualizado_em?' · '+dataPt(r.atualizado_em):'')));
+    if(r.ultima){const u=el('div','small',(r.ultima.length>110?r.ultima.slice(0,110)+'…':r.ultima));u.style.margin='2px 0';c.append(u)}
+    c.append(el('div','small mut',(r.mota_interesse?r.mota_interesse+' · ':'')+'estado: '+r.estado.replace('_',' ')+((r.ultima_cliente_em||r.atualizado_em)?' · '+dataPt(r.ultima_cliente_em||r.atualizado_em):'')));
     c.onclick=()=>abre(r.id);l.append(c)});
 }
 async function abre(id){
@@ -304,6 +307,12 @@ $('#s-ok').onclick=async()=>{
   try{const r=await api('/api/stock',{method:'POST',body:await f.text()});m.textContent=r.importadas+' motas carregadas ✓';m.className='small mut';carregaStock()}
   catch(e){m.textContent='Erro: '+e.message;m.className='small err'}
 };
+async function atualizarAgora(){
+  try{const s=await api('/api/olx');if(s.ligado){const b=document.querySelector('#filtros .chip');if(b)b.textContent='↻ A atualizar…';await api('/api/olx/sync?esperar=1',{method:'POST'})}}catch{}
+  if(atual==null)voltar();
+}
+// Atualiza a lista sozinha a cada minuto (só quando está a ver a lista, sem nada aberto).
+setInterval(()=>{if(atual==null&&!$('#v-leads').classList.contains('hide')&&!document.hidden)voltar()},60000);
 voltar();
 </script>
 </body>
