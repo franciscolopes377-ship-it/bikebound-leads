@@ -105,6 +105,16 @@ label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
       <div class="row" style="margin-top:10px"><button class="btn" id="c-ok">Guardar</button><span id="c-msg" class="small mut"></span></div>
     </div>
     <div class="card">
+      <strong>Ligação ao OLX</strong>
+      <div id="olx-estado" class="small" style="margin:6px 0"></div>
+      <div class="row">
+        <a class="btn" id="olx-ligar" href="/olx/ligar" style="text-decoration:none">Ligar ao OLX</a>
+        <button class="btn sec" id="olx-sync">Sincronizar agora</button>
+        <button class="btn sec" id="olx-desligar">Desligar</button>
+      </div>
+      <p class="small mut">Lê as conversas das motas em stock a cada 5 minutos e prepara rascunhos para as mensagens novas. Não envia nada aos clientes.</p>
+    </div>
+    <div class="card">
       <strong>Importar conversas</strong>
       <p class="small mut">Carrega um ficheiro de conversas já existentes (por exemplo do OLX). Só regista o histórico: não cria rascunhos nem envia nada. Repetir o mesmo ficheiro não duplica.</p>
       <input type="file" id="i-file" accept=".json,application/json">
@@ -257,7 +267,22 @@ async function carregaClientes(){
 }
 $('#f-mota').onchange=()=>{fMota=$('#f-mota').value;voltar()};
 $('#n-lead').onchange=()=>$('#n-novo').classList.toggle('hide',!!$('#n-lead').value);
+async function estadoOlx(){
+  const e=$('#olx-estado');e.replaceChildren();
+  try{const s=await api('/api/olx');
+    if(!s.configurado){e.append(el('div','err','Falta configurar OLX_CLIENT_ID e OLX_CLIENT_SECRET no Railway.'));$('#olx-ligar').classList.add('hide');$('#olx-sync').classList.add('hide');$('#olx-desligar').classList.add('hide');return}
+    $('#olx-ligar').classList.toggle('hide',s.ligado);$('#olx-sync').classList.toggle('hide',!s.ligado);$('#olx-desligar').classList.toggle('hide',!s.ligado);
+    e.append(el('div','',s.ligado?'✓ Ligado ao OLX':'Ainda não ligado. Clica em "Ligar ao OLX" e autoriza com a conta do stand.'));
+    if(s.a_correr)e.append(el('div','mut','A sincronizar…'));
+    if(s.ultima_sync)e.append(el('div','mut','Última sincronização: '+new Date(s.ultima_sync).toLocaleString('pt-PT')));
+    if(s.resumo)e.append(el('div','mut',s.resumo.conversas_stock+' conversas de motas em stock atualizadas · '+s.resumo.mensagens_novas+' mensagens novas · '+s.resumo.rascunhos+' rascunhos'));
+    if(s.erro)e.append(el('div','err','Erro: '+s.erro));
+  }catch(x){e.append(el('div','err','Erro: '+x.message))}
+}
+$('#olx-sync').onclick=async()=>{await api('/api/olx/sync',{method:'POST'});estadoOlx();setTimeout(estadoOlx,5000)};
+$('#olx-desligar').onclick=async()=>{if(!confirm('Desligar o OLX? As conversas já importadas ficam na app.'))return;await api('/api/olx/desligar',{method:'POST'});estadoOlx()};
 async function carregaConfig(){
+  estadoOlx();
   try{const c=await api('/api/config');$('#c-instr').value=c.instrucoes||'';$('#c-tel').value=c.telefone_stand||'';$('#c-ass').value=c.assinatura_olx||''}catch(e){$('#c-msg').textContent='Erro: '+e.message}
 }
 $('#c-ok').onclick=async()=>{const m=$('#c-msg');m.className='small mut';m.textContent='A guardar…';

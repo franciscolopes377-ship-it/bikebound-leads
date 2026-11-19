@@ -73,18 +73,28 @@ export async function processInbound({ canal, nome, telefone, texto, lead_id, mo
   return emFila(lead0.id, () => responder(lead0.id, inboundId, canal, t, mota_id));
 }
 
+// Gera um rascunho para a última mensagem do cliente numa lead (usado pela sincronização do OLX).
+export function responderUltima(leadId, canal) {
+  const m = db.prepare("SELECT id, texto FROM mensagens WHERE lead_id=? AND direcao='inbound' ORDER BY criado_em DESC, id DESC LIMIT 1").get(leadId);
+  if (!m) return Promise.resolve({ lead_id: leadId, erro: 'Sem mensagens do cliente' });
+  return emFila(leadId, () => responder(leadId, m.id, canal, m.texto, null));
+}
+
 async function responder(leadId, inboundId, canal, texto, mota_id) {
   const base = { lead_id: leadId, mensagem_id: inboundId };
   const lead = db.prepare('SELECT * FROM leads WHERE id=?').get(leadId);
   if (!lead) return { ...base, erro: 'Lead apagada entretanto' };
 
   // Se o cliente já escreveu outra mensagem a seguir, a resposta fica para essa (uma só resposta para tudo).
-  const ultima = db.prepare("SELECT MAX(id) AS id FROM mensagens WHERE lead_id=? AND direcao='inbound'").get(leadId).id;
-  if (ultima > inboundId) return { ...base, adiada: true };
+  const ultima = db.prepare("SELECT id FROM mensagens WHERE lead_id=? AND direcao='inbound' ORDER BY criado_em DESC, id DESC LIMIT 1").get(leadId)?.id;
+  if (ultima !== inboundId) return { ...base, adiada: true };
 
-  const mota = mota_id ? getStock().find(m => String(m.id) === String(mota_id)) || null : null;
-  const historico = db.prepare("SELECT direcao, texto FROM mensagens WHERE lead_id=? AND id<? AND estado IN ('recebida','enviada') ORDER BY id DESC LIMIT 30")
-    .all(leadId, inboundId).reverse();
+  const stock = getStock();
+  let mota = mota_id ? stock.find(m => String(m.id) === String(mota_id)) || null : null;
+  if (!mota && lead.mota_interesse) mota = stock.find(m => [m.modelo, m.mes_ano].filter(Boolean).join(' ') === lead.mota_interesse) || null;
+  const historico = db.prepare(`SELECT direcao, texto FROM mensagens WHERE lead_id=? AND id<>? AND estado IN ('recebida','enviada')
+      AND (criado_em < (SELECT criado_em FROM mensagens WHERE id=?) OR (criado_em = (SELECT criado_em FROM mensagens WHERE id=?) AND id < ?))
+      ORDER BY criado_em DESC, id DESC LIMIT 30`).all(leadId, inboundId, inboundId, inboundId, inboundId).reverse();
 
   let out;
   try { out = await askClaude({ canal, lead, historico, texto, mota }); }

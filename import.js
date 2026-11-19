@@ -42,6 +42,7 @@ export function importarConversas(conversas) {
   if (conversas.length > MAX_CONVERSAS) throw Object.assign(new Error(`Máximo de ${MAX_CONVERSAS} conversas por importação`), { status: 400 });
   const stock = getStock();
   const res = { leads_novas: 0, leads_atualizadas: 0, mensagens_novas: 0, conversas_sem_novidades: 0, erros: [] };
+  const norm = t => String(t || '').replace(/\s+/g, ' ').trim();
   const insMsg = db.prepare('INSERT OR IGNORE INTO mensagens (lead_id, direcao, canal, texto, estado, externo_id, criado_em) VALUES (?,?,?,?,?,?,COALESCE(?, CURRENT_TIMESTAMP))');
 
   db.exec('BEGIN');
@@ -69,6 +70,15 @@ export function importarConversas(conversas) {
       for (const m of c.mensagens) {
         const texto = str(m.texto, 4000), data = dataSql(m.data);
         const id = `${ext}:${str(m.externo_id, 100) || sha([m.direcao, m.data || '', texto].join('|'))}`;
+        if (str(m.externo_id, 100)) {
+          // A mesma mensagem pode já existir de uma importação feita pelo browser (sem id): atualiza-a em vez de duplicar.
+          const igual = db.prepare("SELECT id, texto FROM mensagens WHERE lead_id=? AND direcao=? AND (externo_id IS NULL OR externo_id NOT LIKE '%:m:%')").all(lead.id, m.direcao)
+            .find(x => norm(x.texto) === norm(texto));
+          if (igual && !db.prepare('SELECT 1 FROM mensagens WHERE externo_id=?').get(id)) {
+            db.prepare('UPDATE mensagens SET externo_id=?, criado_em=COALESCE(?, criado_em) WHERE id=?').run(id, data, igual.id);
+            continue;
+          }
+        }
         const r = insMsg.run(lead.id, m.direcao, c.canal, texto, m.direcao === 'inbound' ? 'recebida' : 'enviada', id, data);
         if (r.changes) { novas++; if (data && (!ultima || data > ultima)) ultima = data; }
       }
@@ -87,6 +97,7 @@ export function importarConversas(conversas) {
           ultima, ultima, nova ? 1 : 0, ultima, lead.id);
 
       res.mensagens_novas += novas;
+      (res.leads ||= []).push({ lead_id: lead.id, nova, novas });
       if (nova) res.leads_novas++; else if (novas) res.leads_atualizadas++; else res.conversas_sem_novidades++;
     });
     db.exec('COMMIT');

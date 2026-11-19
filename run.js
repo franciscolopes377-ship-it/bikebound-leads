@@ -274,6 +274,80 @@ assert.equal((await post('/api/importar', { conversas: conv }, { headers: { 'sec
   assert.equal((await j('/api/leads')).b.find(l => l.nome === 'Paulo').telefone_norm, '912000333'); ok('importação: telefone escrito no chat fica na lead');
 }
 
+// ---------- API do OLX ----------
+{
+  const { syncOlx, olxStatus } = await import('./olx.js');
+  const { setConfig } = await import('./db.js');
+  r = await j('/api/olx'); assert.equal(r.b.configurado, false); assert.equal((await j('/olx/ligar')).s, 400); ok('OLX: sem Client ID/Secret → aviso claro');
+
+  // servidor OLX simulado
+  const agora = Date.now(), iso = d => new Date(d).toISOString();
+  const st = { threads: [], msgs: {}, pedidos: [], tokenPedidos: [], falhar401: 0 };
+  const olx = http.createServer(async (req, res) => {
+    const u = new URL(req.url, 'http://x'); let corpo = ''; for await (const c of req) corpo += c;
+    const js = (code, o) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(o)); };
+    if (u.pathname === '/api/open/oauth/token') { st.tokenPedidos.push(JSON.parse(corpo)); return js(200, { access_token: 'acc' + st.tokenPedidos.length, refresh_token: 'ref' + st.tokenPedidos.length, expires_in: 86400 }); }
+    st.pedidos.push({ path: u.pathname + u.search, auth: req.headers.authorization, version: req.headers.version, ctype: req.headers['content-type'] });
+    if (st.falhar401 > 0) { st.falhar401--; return js(401, { error: 'expired' }); }
+    if (u.pathname === '/api/partner/threads') { const o = +u.searchParams.get('offset'); return js(200, { data: st.threads.slice(o, o + 50) }); }
+    let m;
+    if ((m = u.pathname.match(/^\/api\/partner\/threads\/([^/]+)\/messages$/))) return js(200, { data: st.msgs[m[1]] || [] });
+    if ((m = u.pathname.match(/^\/api\/partner\/adverts\/(\d+)$/))) return m[1] === '101' ? js(200, { data: { id: 101, url: 'https://www.olx.pt/d/anuncio/yamaha-mt-07-teste-IDabc12.html', title: 'Yamaha MT-07 teste', status: 'active' } }) : m[1] === '202' ? js(200, { data: { id: 202, url: 'https://www.olx.pt/d/anuncio/outra-mota-IDzzz.html', title: 'Vendida', status: 'removed_by_user' } }) : js(404, {});
+    if ((m = u.pathname.match(/^\/api\/partner\/users\/(\d+)$/))) return js(200, { data: { id: +m[1], name: m[1] === '9' ? 'Carla' : 'Duarte' } });
+    js(404, {});
+  });
+  await new Promise(r => olx.listen(0, r));
+  Object.assign(process.env, { OLX_CLIENT_ID: 'cid', OLX_CLIENT_SECRET: 'csec', OLX_HOST: `http://localhost:${olx.address().port}`, OLX_REDIRECT_URI: 'https://exemplo.test/olx/callback' });
+  db.prepare("INSERT OR REPLACE INTO stock_sync (matricula, marca, modelo, km, data_matricula, preco, link) VALUES ('OL-01-XX','Yamaha','MT-07',12000,'2021-05-01','6950','https://www.olx.pt/d/anuncio/yamaha-mt-07-teste-IDabc12.html')").run();
+
+  // autorização
+  r = await fetch(base + '/olx/ligar', { headers: auth, redirect: 'manual' }); assert.equal(r.status, 302);
+  const loc = new URL(r.headers.get('location')); assert.equal(loc.pathname, '/oauth/authorize/'); assert.equal(loc.searchParams.get('client_id'), 'cid'); assert.equal(loc.searchParams.get('scope'), 'v2 read write'); assert.equal(loc.searchParams.get('redirect_uri'), 'https://exemplo.test/olx/callback');
+  const state = loc.searchParams.get('state'); assert.ok(state.length >= 32);
+  assert.equal((await fetch(base + '/olx/callback?code=abc&state=errado', { headers: auth })).status, 400);
+  assert.equal((await fetch(base + '/olx/ligar?x', { redirect: 'manual' })).status, 401); ok('OLX: ligar redireciona para a autorização; estado errado ou sem palavra-passe recusado');
+
+  // conversas no OLX: U1 (mota em stock, nova), U2 (anúncio removido), U3 (já importada pelo browser)
+  const ligado = agora; // as mensagens antes disto são histórico
+  st.threads = [{ uuid: 'U1-AAA', advert_id: 101, interlocutor_id: 9, total_count: 2 }, { uuid: 'u2-bbb', advert_id: 202, interlocutor_id: 10, total_count: 1 }, { uuid: 'u3-ccc', advert_id: 101, interlocutor_id: 11, total_count: 2 }];
+  st.msgs['u1-aaa'] = [{ uuid: 'm11', type: 'received', text: 'Boa tarde, ainda tem a MT-07?', created_at: iso(agora - 86400e3) }, { uuid: 'm12', type: 'sent', text: 'Boa tarde Carla, como está? Sim, ainda se encontra disponível.', created_at: iso(agora - 86000e3) }];
+  st.msgs['u3-ccc'] = [{ uuid: 'm31', type: 'received', text: 'Aceita a minha  mota\nem troca?', created_at: iso(agora - 3 * 86400e3) }, { uuid: 'm32', type: 'sent', text: 'Podemos avaliar a sua mota.', created_at: iso(agora - 3 * 86000e3) }];
+  await post('/api/importar', { conversas: [{ canal: 'olx', externo_id: 'olx:u3-ccc', nome: 'Duarte', mota_id: 'OL-01-XX', mensagens: [{ direcao: 'inbound', texto: 'Aceita a minha mota em troca?', data: '2026-11-01T10:00:00Z' }, { direcao: 'outbound', texto: 'Podemos avaliar a sua mota.', data: '2026-11-01T10:05:00Z' }] }] });
+  const leadU3 = (await j('/api/leads')).b.find(l => l.nome === 'Duarte').id;
+  await j(`/api/leads/${leadU3}`, { method: 'PATCH', body: JSON.stringify({ estado: 'visita_marcada' }) });
+
+  r = await fetch(base + '/olx/callback?code=abc&state=' + state, { headers: auth }); assert.equal(r.status, 200); assert.match(await r.text(), /Ligado ao OLX/);
+  assert.equal(st.tokenPedidos[0].grant_type, 'authorization_code'); assert.equal(st.tokenPedidos[0].code, 'abc'); assert.equal(st.tokenPedidos[0].client_secret, 'csec');
+  setConfig('olx_ligado_em', iso(ligado)); ok('OLX: autorização concluída, token guardado');
+  let s1; try { s1 = await syncOlx({ pausa: 0 }); } catch (e) { s1 = await syncOlx({ pausa: 0 }); } // a do callback pode estar a correr
+  await new Promise(r => setTimeout(r, 200));
+  assert.ok(st.pedidos.every(p => p.version === '2.0' && /^Bearer acc/.test(p.auth) && !p.ctype));
+  r = await j('/api/leads'); const carla = r.b.find(l => l.nome === 'Carla'); assert.ok(carla); assert.match(carla.mota_interesse, /Yamaha MT-07/); assert.equal(carla.rascunhos, 0); assert.equal(carla.alertar, 0);
+  assert.ok(!r.b.some(l => l.nome === 'Duarte' && l.id !== leadU3)); assert.ok(!r.b.some(l => (l.nome || '').startsWith('u2')));
+  r = await j('/api/leads/' + leadU3); assert.equal(r.b.mensagens.length, 2); assert.equal(r.b.lead.estado, 'visita_marcada'); assert.ok(r.b.mensagens.every(m => /:m:m3/.test(m.externo_id)));
+  ok('OLX: 1ª sincronização importa o histórico das motas em stock, ignora anúncios removidos, não duplica o que já foi importado, sem rascunhos');
+  assert.equal(olxStatus().resumo.ignoradas, 1); assert.equal(olxStatus().erro, null);
+
+  // segunda sincronização sem novidades: não volta a pedir mensagens
+  const nPed = st.pedidos.length; await syncOlx({ pausa: 0 }); assert.ok(st.pedidos.slice(nPed).every(p => p.path.startsWith('/api/partner/threads?'))); ok('OLX: sem novidades não volta a ler as conversas');
+
+  // mensagem nova da Carla → rascunho + mota em causa
+  st.threads[0].total_count = 3; st.msgs['u1-aaa'].push({ uuid: 'm13', type: 'received', text: 'Posso ir ver no sábado?', created_at: iso(Date.now()) });
+  const s3 = await syncOlx({ pausa: 0 }); assert.equal(s3.mensagens_novas, 1); assert.equal(s3.rascunhos, 1);
+  r = await j('/api/leads/' + carla.id); const rc = r.b.mensagens.find(m => m.estado === 'rascunho'); assert.ok(rc && rc.canal === 'olx'); assert.equal(r.b.lead.classificacao, 'quente'); assert.equal(r.b.lead.alertar, 1); ok('OLX: mensagem nova do cliente → rascunho e aviso à equipa');
+
+  // renovação do token
+  setConfig('olx_expira', String(Date.now() - 1000)); st.threads[0].total_count = 4; st.msgs['u1-aaa'].push({ uuid: 'm14', type: 'sent', text: 'Pode vir sábado às 10h.', created_at: iso(Date.now() + 1000) });
+  await syncOlx({ pausa: 0 }); assert.equal(st.tokenPedidos.at(-1).grant_type, 'refresh_token'); assert.equal(st.tokenPedidos.at(-1).refresh_token, 'ref1');
+  r = await j('/api/leads/' + carla.id); assert.ok(r.b.mensagens.some(m => m.texto === 'Pode vir sábado às 10h.' && m.estado === 'enviada')); assert.equal(r.b.mensagens.filter(m => m.estado === 'rascunho').length, 0); ok('OLX: token expirado é renovado; resposta dada no OLX entra na conversa e descarta o rascunho');
+  st.falhar401 = 1; st.threads[0].total_count = 5; st.msgs['u1-aaa'].push({ uuid: 'm15', type: 'received', text: 'Combinado', created_at: iso(Date.now() + 2000) });
+  const t0 = st.tokenPedidos.length; await syncOlx({ pausa: 0 }); assert.equal(st.tokenPedidos.length, t0 + 1); ok('OLX: 401 → renova o token e repete');
+
+  r = await j('/api/olx/desligar', { method: 'POST' }); assert.equal(r.b.ligado, false); assert.equal((await j('/api/olx/sync', { method: 'POST' })).s, 200);
+  await new Promise(r => setTimeout(r, 100)); assert.match(olxStatus().erro || '', /não está ligado/); ok('OLX: desligar apaga os tokens');
+  olx.close(); for (const k of ['OLX_CLIENT_ID', 'OLX_CLIENT_SECRET', 'OLX_HOST', 'OLX_REDIRECT_URI']) delete process.env[k];
+}
+
 // ---------- apagar e cópia de segurança ----------
 r = await j('/api/export'); assert.equal(r.s, 200); assert.match(r.h.get('content-disposition'), /attachment; filename="bikebound-leads-\d{4}-\d{2}-\d{2}\.json"/); assert.ok(r.b.leads.length >= 5 && r.b.mensagens.length >= 8); assert.equal((await fetch(base + '/api/export')).status, 401); ok('cópia de segurança com leads e conversas (só com palavra-passe)');
 assert.equal((await j('/api/leads/' + lid, { method: 'DELETE' })).s, 200); assert.equal((await j('/api/leads/' + lid)).s, 404); assert.equal((await j('/api/leads/' + lid, { method: 'DELETE' })).s, 404);

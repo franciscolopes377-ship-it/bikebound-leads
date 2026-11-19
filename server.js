@@ -10,6 +10,7 @@ import { processInbound, registarSemResposta } from './leads.js';
 import { instrucoesStand, assinaturaOlx, telefoneStand } from './assistant.js';
 import { importarConversas } from './import.js';
 import { sugestoes, juntarLeads } from './juntar.js';
+import { urlAutorizacao, concluirAutorizacao, olxStatus, syncOlx, desligar, startOlxSync } from './olx.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -85,6 +86,9 @@ function deOutroSite(req) {
 }
 
 const page = readFileSync(join(here, 'index.html'), 'utf8');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pagina = (titulo, texto) => `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(titulo)}</title>
+<body style="font:16px system-ui;max-width:560px;margin:40px auto;padding:0 16px"><h1 style="font-size:20px">${esc(titulo)}</h1><p>${esc(texto)}</p><p><a href="/">Voltar à página dos leads</a></p></body>`;
 const TIPOS_WA = { image: 'imagem', audio: 'áudio', video: 'vídeo', document: 'documento', sticker: 'autocolante', location: 'localização', contacts: 'contacto' };
 
 async function webhookWhatsApp(req, res, url) {
@@ -122,6 +126,18 @@ async function api(req, res, url) {
   let m;
 
   if (M === 'GET' && p === '/') return send(res, 200, page, 'text/html');
+
+  // ---- ligação ao OLX ----
+  if (M === 'GET' && p === '/olx/ligar') { res.writeHead(302, { ...CABECALHOS, location: urlAutorizacao() }); return res.end(); }
+  if (M === 'GET' && p === '/olx/callback') {
+    if (url.searchParams.get('error')) return send(res, 400, pagina('Ligação ao OLX cancelada', 'O OLX não autorizou o acesso: ' + url.searchParams.get('error')), 'text/html');
+    await concluirAutorizacao({ code: url.searchParams.get('code'), state: url.searchParams.get('state') });
+    syncOlx().catch(e => console.error('sync OLX:', e.message));
+    return send(res, 200, pagina('Ligado ao OLX ✓', 'As conversas estão a ser importadas em segundo plano (pode demorar alguns minutos). Nada é enviado aos clientes.'), 'text/html');
+  }
+  if (p === '/api/olx') { if (M === 'GET') return send(res, 200, olxStatus()); }
+  if (M === 'POST' && p === '/api/olx/sync') { syncOlx().catch(() => {}); return send(res, 200, olxStatus()); }
+  if (M === 'POST' && p === '/api/olx/desligar') { desligar(); return send(res, 200, olxStatus()); }
 
   if (M === 'GET' && p === '/api/leads') {
     const c = url.searchParams.get('classificacao');
@@ -257,5 +273,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   else if (env('APP_PASSWORD').length < 12) console.warn('AVISO: APP_PASSWORD é curta; use pelo menos 12 caracteres.');
   if (!env('WHATSAPP_APP_SECRET')) console.warn('WhatsApp: sem WHATSAPP_APP_SECRET, o webhook recusa todas as mensagens.');
   startAutoSync();
+  startOlxSync();
   server.listen(PORT, () => console.log(`BikeBound Leads em http://localhost:${PORT} (auto-envio: ${AUTO_SEND ? 'ON' : 'OFF'})`));
 }

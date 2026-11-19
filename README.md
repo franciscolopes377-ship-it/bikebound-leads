@@ -14,6 +14,7 @@ Assistente de leads do stand: recebe mensagens (OLX e WhatsApp), prepara um rasc
 - Importação de conversas já existentes (separador "Instruções" ou `POST /api/importar`): só regista o histórico, sem rascunhos, e pode repetir-se sem duplicar.
 - Filtro de leads por mota, com o número de interessados em cada uma.
 - Mesmo cliente no OLX e no WhatsApp: o telefone escrito no chat do OLX fica guardado, e as mensagens desse número no WhatsApp entram na mesma lead. Quando não há telefone, a ficha sugere leads parecidas e permite juntá-las.
+- OLX: ligação pela API de parceiros (Instruções → Ligar ao OLX). De 5 em 5 minutos lê as conversas das motas em stock, cria rascunhos para mensagens novas e não duplica o que já foi importado. Não envia nada.
 - WhatsApp: endpoint `/webhook/whatsapp` pronto para a API oficial da Meta (só aceita mensagens assinadas).
 
 ## Variáveis (Railway → Variables)
@@ -27,6 +28,8 @@ Assistente de leads do stand: recebe mensagens (OLX e WhatsApp), prepara um rasc
 | `WHATSAPP_VERIFY_TOKEN` | texto secreto usado na configuração do webhook na Meta |
 | `WHATSAPP_APP_SECRET` | "App Secret" da app na Meta. Sem ele, o webhook recusa todas as mensagens |
 | `CLAUDE_MODEL` | opcional; por defeito `claude-haiku-5-5` |
+| `OLX_CLIENT_ID` | Client ID da aplicação aprovada em developer.olx.pt |
+| `OLX_CLIENT_SECRET` | Client Secret dessa aplicação |
 | `STAND_TELEFONE` | opcional; por defeito `927887107` (também se muda na página) |
 
 ## Segurança
@@ -40,5 +43,4 @@ Assistente de leads do stand: recebe mensagens (OLX e WhatsApp), prepara um rasc
 
 ## Ainda não incluído
 - Envio automático de respostas e aviso à equipa por WhatsApp.
-- Leitura automática das mensagens do OLX.
 - Preço e link dentro da BikeBound (hoje ficam neste serviço).
