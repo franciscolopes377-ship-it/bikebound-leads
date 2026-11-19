@@ -188,6 +188,28 @@ async function abre(id){
   const sel=el('select');['novo','em_curso','visita_marcada','vendida','perdida'].forEach(s=>{const o=el('option','',s.replace('_',' '));o.value=s;if(s===lead.estado)o.selected=true;sel.append(o)});
   sel.onchange=()=>api('/api/leads/'+id,{method:'PATCH',body:JSON.stringify({estado:sel.value})});
   h.append(el('label','','Estado'),sel);
+  // ---- retoma: a equipa escolhe a resposta ----
+  if(lead.retoma||lead.classificacao==='retoma'){
+    const rc=el('div','card');rc.style.margin='12px 0 0';rc.append(el('strong','','Retoma: o que respondemos?'));
+    const mc=el('input');mc.placeholder='Mota do cliente (opcional, ex.: Kawasaki KSF400)';mc.style.margin='8px 0';
+    const msg=el('div','small mut');
+    const fazer=async(corpo)=>{msg.textContent='A preparar…';try{await api('/api/leads/'+id+'/retoma',{method:'POST',body:JSON.stringify({...corpo,mota_cliente:mc.value})});abre(id)}catch(e){msg.textContent='Erro: '+e.message;msg.className='small err'}};
+    const r1=el('div','row');
+    const b1=el('button','btn sec','Perguntar se está anunciada');b1.onclick=()=>fazer({acao:'anunciada'});
+    const b2=el('button','btn sec','Temos interesse: pedir dados');b2.onclick=()=>fazer({acao:'dados'});
+    const b3=el('button','btn sec','Não temos interesse');b3.onclick=()=>fazer({acao:'recusar'});
+    r1.append(b1,b2,b3);
+    const r2=el('div','row');r2.style.marginTop='8px';
+    const vx=el('input');vx.placeholder='Valor da retoma (€)';vx.inputMode='decimal';vx.style.maxWidth='170px';
+    const vp=el('input');vp.placeholder='Preço da nossa mota (€)';vp.inputMode='decimal';vp.style.maxWidth='190px';
+    const ac=el('span','small');
+    const b4=el('button','btn','Preparar proposta');b4.onclick=()=>fazer({acao:'proposta',valor:vx.value,preco:vp.value});
+    const calc=()=>{const n=v=>Number(String(v).replace(/[^\d,]/g,'').replace(',','.'));const x=n(vx.value),p=n(vp.value);if(!x||!p){ac.textContent='';return}const y=p-x;const eu=v=>String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'€';ac.textContent=y>0?'Acerto: '+eu(y)+' da parte do cliente':y<0?'Acerto: '+eu(-y)+' da nossa parte':'Troca direta, sem acerto'};
+    vx.oninput=calc;vp.oninput=calc;
+    api('/api/stock').then(st=>{const m=st.find(x=>[x.modelo,x.mes_ano].filter(Boolean).join(' ')===lead.mota_interesse);if(m&&m.preco){vp.value=m.preco;calc()}}).catch(()=>{});
+    r2.append(vx,vp,b4);
+    rc.append(mc,r1,el('label','','Proposta: valor da retoma e preço da nossa mota'),r2,ac,msg);h.append(rc);
+  }
   const ap=el('button','btn sec','Apagar lead');ap.style.marginTop='12px';
   ap.onclick=async()=>{if(!confirm('Apagar esta lead e toda a conversa? Não dá para desfazer.'))return;
     try{await api('/api/leads/'+id,{method:'DELETE'});voltar()}catch(e){alert(e.message)}};

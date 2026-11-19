@@ -364,6 +364,28 @@ const { execFileSync } = await import('node:child_process');
 const saida = execFileSync(process.execPath, ['--no-warnings', '-e', "import('./db.js').then(({db})=>{const l=db.prepare('SELECT * FROM leads').get();const c=db.prepare('PRAGMA table_info(mensagens)').all().map(x=>x.name);console.log(JSON.stringify({tel:l.telefone_norm,nome:l.nome,c}))})"], { env: { ...process.env, DB_PATH: velha }, cwd: import.meta.dirname }).toString();
 const mig = JSON.parse(saida); assert.equal(mig.tel, '911222333'); assert.equal(mig.nome, 'Ricardo'); assert.ok(['externo_id', 'aviso', 'texto_original'].every(c => mig.c.includes(c))); ok('base de dados da versão anterior é atualizada sem perder dados');
 
+// ---------- retoma: respostas escolhidas pela equipa ----------
+{
+  db.prepare("INSERT OR REPLACE INTO stock_sync (matricula, marca, modelo, km, data_matricula, preco, link) VALUES ('VG-62-5D','VOGE','625DSX',3000,'2025-10-01','6600','https://www.olx.pt/d/anuncio/voge-625dsx-oportunidade-IDJHcsk.html'),('XT-60-00','YAMAHA','XT 600',30000,'2001-01-01','2800',null)").run();
+  await post('/api/importar', { conversas: [{ canal: 'olx', externo_id: 'ret-adelino', nome: 'Adelino Barreiros', mota_id: 'VG-62-5D', classificacao: 'retoma', retoma: true, mensagens: [{ direcao: 'inbound', texto: 'Teria interesse na retoma desta mota: https://www.olx.pt/d/anuncio/kawasaki-ksf400-kfx400-IDJHRn0.html', data: '2026-11-19T13:51:00Z' }] }] });
+  const ad = (await j('/api/leads')).b.find(l => l.nome === 'Adelino Barreiros').id;
+  r = await post(`/api/leads/${ad}/retoma`, { acao: 'anunciada' }); assert.equal(r.s, 200);
+  assert.match(r.b.texto, /^(Bom dia|Boa tarde|Boa noite) Adelino, como está\?\n\nA mota que pretende dar em troca é a que se encontra anunciada no seu perfil\?\n\nMelhores cumprimentos,/);
+  r = await j('/api/leads/' + ad); assert.equal(r.b.mensagens.filter(m => m.estado === 'rascunho').length, 1); assert.equal(r.b.lead.alertar, 0); assert.equal(r.b.lead.estado, 'em_curso');
+  r = await post(`/api/leads/${ad}/retoma`, { acao: 'dados', mota_cliente: 'Kawasaki KSF400' }); assert.match(r.b.texto, /Podemos avaliar a sua Kawasaki KSF400\. Pode enviar-nos o ano, os quilómetros, o estado geral e algumas fotografias\?/);
+  r = await j('/api/leads/' + ad); assert.equal(r.b.mensagens.filter(m => m.estado === 'rascunho').length, 1); ok('retoma: perguntar se está anunciada / pedir dados (um só rascunho, com nome e assinatura)');
+  r = await post(`/api/leads/${ad}/retoma`, { acao: 'recusar' }); assert.match(r.b.texto, /não temos interesse na aquisição da sua mota\. Se tiver interesse, podemos vender a VOGE 625DSX a pronto pagamento ou então oferecer-lhe a possibilidade de financiamento\./);
+  r = await post(`/api/leads/${ad}/retoma`, { acao: 'proposta', valor: '2.500', mota_cliente: 'KSF400' }); assert.match(r.b.texto, /retomar a sua KSF400 por 2\.500€, ficando um acerto de 4\.100€ da sua parte para a nossa VOGE 625DSX\. Faz sentido para si\?/); assert.equal(r.b.texto.includes('aviso'), false);
+  r = await post(`/api/leads/${ad}/retoma`, { acao: 'proposta', valor: '7000' }); assert.match(r.b.texto, /acerto seria de 400€ da nossa parte/);
+  assert.equal((await post(`/api/leads/${ad}/retoma`, { acao: 'proposta' })).s, 400); assert.equal((await post(`/api/leads/${ad}/retoma`, { acao: 'xpto' })).s, 400); assert.equal((await post('/api/leads/999999/retoma', { acao: 'dados' })).s, 404);
+  ok('retoma: recusa e proposta com acerto nos dois sentidos; pedidos inválidos recusados');
+  await post(`/api/mensagens/${(await j('/api/leads/' + ad)).b.mensagens.find(m => m.estado === 'rascunho').id}/estado`, { estado: 'enviada' });
+  r = await post(`/api/leads/${ad}/retoma`, { acao: 'dados' }); assert.match(r.b.texto, /^(Bom dia|Boa tarde|Boa noite) Adelino,\n\nPodemos avaliar/); ok('retoma: depois da 1ª resposta, sem "como está?"');
+  await post('/api/importar', { conversas: [{ canal: 'olx', externo_id: 'ret-xt', nome: 'user123x', mota_id: 'XT-60-00', retoma: true, mensagens: [{ direcao: 'inbound', texto: 'aceita troca?', data: '2026-11-19T13:00:00Z' }] }] });
+  const xt = (await j('/api/leads')).b.find(l => l.nome === 'user123x').id;
+  r = await post(`/api/leads/${xt}/retoma`, { acao: 'recusar' }); assert.match(r.b.texto, /^(Bom dia|Boa tarde|Boa noite), como está\?/); assert.match(r.b.texto, /vender a YAMAHA XT 600 a pronto pagamento\.\n/); assert.ok(!r.b.texto.includes('financiamento')); ok('retoma: motas de baixo valor sem financiamento; nome de utilizador não é usado');
+}
+
 // ---------- ordem da lista: mensagem mais recente do cliente primeiro ----------
 await post('/api/importar', { conversas: [{ canal: 'olx', externo_id: 'ord-velha', nome: 'Antiga', mensagens: [{ direcao: 'inbound', texto: 'olá', data: '2026-01-01T10:00:00Z' }] }] });
 r = await post('/api/mensagens', { canal: 'olx', nome: 'Recente', texto: 'Ainda tem a mota?' });

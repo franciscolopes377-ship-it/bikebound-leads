@@ -10,6 +10,7 @@ import { processInbound, registarSemResposta } from './leads.js';
 import { instrucoesStand, assinaturaOlx, telefoneStand } from './assistant.js';
 import { importarConversas } from './import.js';
 import { sugestoes, juntarLeads } from './juntar.js';
+import { prepararRetoma } from './retoma.js';
 import { urlAutorizacao, concluirAutorizacao, olxStatus, syncOlx, desligar, startOlxSync } from './olx.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -158,6 +159,7 @@ async function api(req, res, url) {
 
   if (M === 'GET' && (m = p.match(/^\/api\/leads\/(\d+)\/sugestoes$/))) return send(res, 200, sugestoes(m[1]));
   if (M === 'POST' && (m = p.match(/^\/api\/leads\/(\d+)\/juntar$/))) return send(res, 200, juntarLeads(m[1], (await json(req)).com));
+  if (M === 'POST' && (m = p.match(/^\/api\/leads\/(\d+)\/retoma$/))) return send(res, 200, prepararRetoma(m[1], await json(req)));
 
   if ((m = p.match(/^\/api\/leads\/(\d+)$/))) {
     const id = m[1];
