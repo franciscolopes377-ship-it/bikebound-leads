@@ -445,14 +445,26 @@ function renderConversa(){
     let url=null,rot='Copiar';
     if(canalR==='whatsapp'){const w=telWa(lead.telefone);if(w){rot='Copiar e abrir WhatsApp'}url=w?()=>'https://wa.me/'+w+'?text='+encodeURIComponent(ta.value):null}
     else if(lo){rot='Copiar e abrir no OLX';url=()=>lo}
-    const pb=el('button','btn prim',rot);
+    const direto=canalR==='olx'&&rasc.canal==='olx'&&!!lo&&!!(olx&&olx.ligado);
+    const pb=el('button',direto?'btn sec':'btn prim',rot);
     const conf=el('div','confirma hide');
     pb.onclick=async()=>{await copia();if(url)window.open(url(),'_blank','noopener');pb.textContent='Copiado ✓';conf.classList.remove('hide')};
+    let eb=null;
+    if(direto){
+      eb=el('button','btn prim','Enviar pelo OLX');
+      eb.onclick=async()=>{
+        if(!ta.value.trim())return;
+        if(!confirm('Enviar esta mensagem a '+nomeLead(lead)+' pelo OLX?\n\n'+ta.value.slice(0,400)+(ta.value.length>400?'…':'')))return;
+        eb.disabled=true;eb.textContent='A enviar…';
+        try{await post(`/api/mensagens/${rasc.id}/enviar`,{texto:ta.value});sujo=false;await abre(id,{silencioso:true});
+          const r=leads.find(x=>x.id===id);if(r){r.rascunhos=0;renderLista()}}
+        catch(e){alert(e.message);eb.disabled=false;eb.textContent='Enviar pelo OLX'}};
+    }
     const reg=el('button','btn sec','Gerar outra versão');
     reg.onclick=async()=>{if(sujo&&!confirm('Substituir o rascunho que alteraste?'))return;reg.disabled=true;reg.textContent='A gerar…';try{const r=await post('/api/leads/'+id+'/regerar');if(r&&r.erro)alert(r.erro);sujo=false;await abre(id,{silencioso:true})}catch(e){alert(e.message);reg.disabled=false;reg.textContent='Gerar outra versão'}};
     const desc=el('button','btn sec','Descartar');desc.onclick=async()=>{await post(`/api/mensagens/${rasc.id}/estado`,{estado:'descartada'});sujo=false;await abre(id,{silencioso:true})};
     const env=el('button','btn lnk','Já enviei — marcar como enviada');env.onclick=marcar;
-    ac.append(pb,reg,desc);cp.append(ac);
+    if(eb)ac.append(eb);ac.append(pb,reg,desc);cp.append(ac);
     conf.append(el('span','','Enviaste a resposta ao cliente?'));
     const si=el('button','btn sm','Sim, marcar como enviada');si.onclick=marcar;
     const nao=el('button','btn sec sm','Ainda não');nao.onclick=()=>{conf.classList.add('hide');pb.textContent=rot};

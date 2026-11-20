@@ -12,10 +12,16 @@ import { importarConversas } from './import.js';
 import { sugestoes, juntarLeads } from './juntar.js';
 import { prepararRetoma, prepararRapida } from './retoma.js';
 import { responderUltima } from './leads.js';
-import { urlAutorizacao, concluirAutorizacao, olxStatus, syncOlx, desligar, startOlxSync } from './olx.js';
+import { urlAutorizacao, concluirAutorizacao, olxStatus, syncOlx, desligar, startOlxSync, enviarMensagemOlx } from './olx.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
+const aEnviar = new Set();
+// Conversa do OLX associada à lead (vem da ligação ao OLX ou da importação).
+function olxUuid(lead) {
+  const ext = [lead.externo_id, ...db.prepare('SELECT externo_id FROM lead_externos WHERE lead_id=?').all(lead.id).map(x => x.externo_id)].find(x => /^imp:olx:/.test(x || ''));
+  return ext ? ext.slice('imp:olx:'.length) : null;
+}
 const env = k => process.env[k] || '';
 const AUTO_SEND = env('AUTO_SEND') === '1'; // reservado: modo automático (ainda não ativo)
 
@@ -176,8 +182,7 @@ async function api(req, res, url) {
     const lead = db.prepare('SELECT * FROM leads WHERE id=?').get(id);
     if (!lead) return send(res, 404, { erro: 'Lead não encontrada' });
     if (M === 'GET' && url.searchParams.get('visto') === '1') db.prepare(`UPDATE leads SET visto_em=${VISTO_AGORA} WHERE id=?`).run(id);
-    const ext = [lead.externo_id, ...db.prepare('SELECT externo_id FROM lead_externos WHERE lead_id=?').all(id).map(x => x.externo_id)].find(x => /^imp:olx:/.test(x || ''));
-    const olx_uuid = ext ? ext.slice('imp:olx:'.length) : null;
+    const olx_uuid = olxUuid(lead);
     if (M === 'GET') return send(res, 200, { lead, olx_uuid, ultimo_canal: db.prepare("SELECT canal FROM mensagens WHERE lead_id=? AND direcao='inbound' ORDER BY criado_em DESC, id DESC LIMIT 1").get(id)?.canal || lead.canal, mensagens: db.prepare('SELECT * FROM mensagens WHERE lead_id=? ORDER BY criado_em, id').all(id) });
     if (M === 'DELETE') {
       db.exec('BEGIN');
@@ -205,6 +210,32 @@ async function api(req, res, url) {
       canal: b.canal, nome: b.nome, telefone: b.telefone, texto: b.texto,
       lead_id: b.lead_id ? Number(b.lead_id) : null, mota_id: b.mota_id || null
     }));
+  }
+
+  if (M === 'POST' && (m = p.match(/^\/api\/mensagens\/(\d+)\/enviar$/))) {
+    const b = await json(req);
+    const msg = db.prepare("SELECT * FROM mensagens WHERE id=? AND direcao='outbound'").get(m[1]);
+    if (!msg) return send(res, 404, { erro: 'Mensagem não encontrada' });
+    if (msg.estado !== 'rascunho') return send(res, 409, { erro: 'Esta mensagem já não é um rascunho (foi enviada ou descartada).' });
+    if (msg.canal !== 'olx') return send(res, 400, { erro: 'Só é possível enviar diretamente no OLX. No WhatsApp, copia e envia na app.' });
+    const lead = db.prepare('SELECT * FROM leads WHERE id=?').get(msg.lead_id);
+    const uuid = olxUuid(lead);
+    if (!uuid) return send(res, 400, { erro: 'Esta conversa não está ligada a uma conversa do OLX (foi colada à mão). Copia e envia no OLX.' });
+    const texto = typeof b.texto === 'string' && b.texto.trim() ? b.texto.trim().slice(0, 4000) : msg.texto;
+    if (aEnviar.has(msg.id)) return send(res, 409, { erro: 'Já está a ser enviada.' });
+    aEnviar.add(msg.id);
+    try {
+      let r;
+      try { r = await enviarMensagemOlx(uuid, texto); }
+      catch (e) { return send(res, e.status || 502, { erro: 'O OLX não aceitou o envio: ' + e.message }); }
+      const idOlx = r && (r.uuid || r.id) ? String(r.uuid || r.id).toLowerCase() : null;
+      const ext = idOlx && !db.prepare('SELECT 1 FROM mensagens WHERE externo_id=?').get(`imp:olx:${uuid}:m:${idOlx}`) ? `imp:olx:${uuid}:m:${idOlx}` : null;
+      const original = msg.texto_original ?? (texto !== msg.texto ? msg.texto : null);
+      db.prepare("UPDATE mensagens SET estado='enviada', texto=?, texto_original=?, aviso=?, externo_id=COALESCE(?, externo_id), criado_em=CURRENT_TIMESTAMP WHERE id=?")
+        .run(texto, original, texto !== msg.texto ? null : msg.aviso, ext, msg.id);
+      db.prepare("UPDATE leads SET estado=CASE WHEN estado='novo' THEN 'em_curso' ELSE estado END, atualizado_em=CURRENT_TIMESTAMP WHERE id=?").run(lead.id);
+      return send(res, 200, { ok: true });
+    } finally { aEnviar.delete(msg.id); }
   }
 
   if (M === 'POST' && (m = p.match(/^\/api\/mensagens\/(\d+)\/estado$/))) {

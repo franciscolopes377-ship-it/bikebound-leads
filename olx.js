@@ -5,7 +5,7 @@ import { importarConversas } from './import.js';
 import { classificarConversa } from './classificar.js';
 import { responderUltima } from './leads.js';
 
-// Ligação à API de parceiros do OLX (OAuth 2.0). Só leitura: as respostas continuam a ser rascunhos aprovados pela equipa.
+// Ligação à API de parceiros do OLX (OAuth 2.0). Lê as conversas e envia só as respostas que a equipa aprova uma a uma.
 const env = k => process.env[k] || '';
 const HOST = () => (env('OLX_HOST') || 'https://www.olx.pt').replace(/\/+$/, '');
 const REDIRECT = () => env('OLX_REDIRECT_URI') || 'https://bikebound-leads-production.up.railway.app/olx/callback';
@@ -66,20 +66,29 @@ export function desligar() {
 
 // ---------- pedidos à API ----------
 const espera = ms => new Promise(r => setTimeout(r, ms));
-async function api(caminho, { fetchImpl, pausa }) {
+async function api(caminho, { fetchImpl, pausa }, { method = 'GET', body } = {}) {
   for (let tentativa = 0; tentativa < 3; tentativa++) {
+    const headers = { authorization: `Bearer ${await token(fetchImpl, tentativa > 0)}`, version: '2.0', accept: 'application/json' };
+    if (body !== undefined) headers['content-type'] = 'application/json';
     const r = await fetchImpl(`${HOST()}/api/partner${caminho}`, {
-      headers: { authorization: `Bearer ${await token(fetchImpl, tentativa > 0)}`, version: '2.0', accept: 'application/json' },
+      method, headers, body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(20000)
     });
     if (pausa) await espera(pausa);
     if (r.status === 401 && tentativa === 0) continue; // token expirado: renova e repete
     if (r.status === 429) { await espera(Math.min(Number(r.headers.get('retry-after')) || 30, 120) * 1000); continue; }
     if (!r.ok) throw new Error(`OLX ${r.status} em ${caminho.split('?')[0]}: ${(await r.text()).slice(0, 150)}`);
-    const j = await r.json();
+    const txt = await r.text();
+    let j = null; try { j = txt ? JSON.parse(txt) : null; } catch { j = null; }
     return j && typeof j === 'object' && 'data' in j ? j.data : j;
   }
   throw new Error(`OLX não respondeu em ${caminho.split('?')[0]}`);
+}
+
+// ---------- envio de uma resposta aprovada pela equipa ----------
+export async function enviarMensagemOlx(uuid, texto, { fetchImpl = fetch } = {}) {
+  if (!getConfig('olx_refresh') && !getConfig('olx_access')) throw Object.assign(new Error('O OLX não está ligado'), { status: 409 });
+  return api(`/threads/${encodeURIComponent(uuid)}/messages`, { fetchImpl, pausa: 0 }, { method: 'POST', body: { text: texto } });
 }
 
 // ---------- ligação aos anúncios do stock ----------

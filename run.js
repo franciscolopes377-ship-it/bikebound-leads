@@ -291,6 +291,10 @@ assert.equal((await post('/api/importar', { conversas: conv }, { headers: { 'sec
     if (st.falhar401 > 0) { st.falhar401--; return js(401, { error: 'expired' }); }
     if (u.pathname === '/api/partner/threads') { const o = +u.searchParams.get('offset'); return js(200, { data: st.threads.slice(o, o + 50) }); }
     let m;
+    if (req.method === 'POST' && (m = u.pathname.match(/^\/api\/partner\/threads\/([^/]+)\/messages$/))) {
+      st.enviadas = (st.enviadas || 0) + 1; const novo = { uuid: 'env' + st.enviadas, type: 'sent', text: JSON.parse(corpo).text, created_at: new Date().toISOString() };
+      (st.msgs[m[1]] ||= []).push(novo); st.pedidos.at(-1).corpo = JSON.parse(corpo); return js(200, { data: { id: novo.uuid } });
+    }
     if ((m = u.pathname.match(/^\/api\/partner\/threads\/([^/]+)\/messages$/))) return js(200, { data: st.msgs[m[1]] || [] });
     if ((m = u.pathname.match(/^\/api\/partner\/adverts\/(\d+)$/))) return m[1] === '101' ? js(200, { data: { id: 101, url: 'https://www.olx.pt/d/anuncio/yamaha-mt-07-teste-IDabc12.html', title: 'Yamaha MT-07 teste', status: 'active' } }) : m[1] === '202' ? js(200, { data: { id: 202, url: 'https://www.olx.pt/d/anuncio/outra-mota-IDzzz.html', title: 'Vendida', status: 'removed_by_user' } }) : js(404, {});
     if ((m = u.pathname.match(/^\/api\/partner\/users\/(\d+)$/))) return js(200, { data: { id: +m[1], name: m[1] === '9' ? 'Carla' : 'Duarte' } });
@@ -345,6 +349,16 @@ assert.equal((await post('/api/importar', { conversas: conv }, { headers: { 'sec
   r = await j('/api/leads/' + carla.id); assert.ok(r.b.mensagens.some(m => m.texto === 'Pode vir sábado às 10h.' && m.estado === 'enviada')); assert.equal(r.b.mensagens.filter(m => m.estado === 'rascunho').length, 0); ok('OLX: token expirado é renovado; resposta dada no OLX entra na conversa e descarta o rascunho');
   st.falhar401 = 1; st.threads[0].total_count = 5; st.msgs['u1-aaa'].push({ uuid: 'm15', type: 'received', text: 'Combinado', created_at: iso(Date.now() + 3500) });
   const t0 = st.tokenPedidos.length; await syncOlx({ pausa: 0 }); assert.equal(st.tokenPedidos.length, t0 + 1); ok('OLX: 401 → renova o token e repete');
+
+  // enviar um rascunho diretamente pelo OLX
+  r = await j('/api/leads/' + carla.id); const rcE = r.b.mensagens.find(m => m.estado === 'rascunho'); assert.ok(rcE, 'há rascunho para a mensagem "Combinado"');
+  r = await post(`/api/mensagens/${rcE.id}/enviar`, { texto: 'Combinado, até sábado!' }); assert.equal(r.s, 200);
+  const pe = st.pedidos.at(-1); assert.match(pe.path, /^\/api\/partner\/threads\/u1-aaa\/messages$/); assert.equal(pe.corpo.text, 'Combinado, até sábado!'); assert.equal(pe.ctype, 'application/json');
+  assert.equal((await post(`/api/mensagens/${rcE.id}/enviar`, {})).s, 409);
+  st.threads[0].total_count = 6; await syncOlx({ pausa: 0 });
+  r = await j('/api/leads/' + carla.id); assert.equal(r.b.mensagens.filter(m => m.texto === 'Combinado, até sábado!').length, 1); assert.equal(r.b.mensagens.find(m => m.id === rcE.id).estado, 'enviada');
+  ok('OLX: enviar rascunho pela API (texto editado), não envia duas vezes, não duplica na sincronização');
+  r = await post('/api/mensagens', { canal: 'olx', nome: 'Manual', texto: 'Olá, tem a MT-07?' }); r = await post(`/api/mensagens/${r.b.rascunho_id}/enviar`, {}); assert.equal(r.s, 400); assert.match(r.b.erro, /colada à mão/); ok('OLX: conversa colada à mão não envia pela API');
 
   r = await j('/api/olx/desligar', { method: 'POST' }); assert.equal(r.b.ligado, false); assert.equal((await j('/api/olx/sync', { method: 'POST' })).s, 200);
   await new Promise(r => setTimeout(r, 100)); assert.match(olxStatus().erro || '', /não está ligado/); ok('OLX: desligar apaga os tokens');
