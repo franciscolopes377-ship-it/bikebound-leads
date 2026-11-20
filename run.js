@@ -389,6 +389,29 @@ const mig = JSON.parse(saida); assert.equal(mig.tel, '911222333'); assert.equal(
   r = await post(`/api/leads/${xt}/retoma`, { acao: 'recusar' }); assert.match(r.b.texto, /^(Bom dia|Boa tarde|Boa noite), como está\?/); assert.match(r.b.texto, /vender a YAMAHA XT 600 a pronto pagamento\.\n/); assert.ok(!r.b.texto.includes('financiamento')); ok('retoma: motas de baixo valor sem financiamento; nome de utilizador não é usado');
 }
 
+// ---------- respostas rápidas ----------
+{
+  const { simulacao } = await import('./retoma.js');
+  const tabela = 'Yamaha MT07 (6.950€): 134,86 x 84\nHonda CB650R BQ-41-LM (8.500€): 150,93 x 96\nHonda CB650R AF-89-PE (5.000€): 100,02 x 84\nBMW G310GS (4.950€): 110,67 x 72';
+  assert.deepEqual(simulacao(tabela, { modelo: 'YAMAHA MT07', preco: '6950' }), { mensalidade: '134,86', meses: '84' });
+  assert.deepEqual(simulacao(tabela, { modelo: 'HONDA CB650R', matricula: 'AF-89-PE', preco: '5000' }), { mensalidade: '100,02', meses: '84' });
+  assert.deepEqual(simulacao(tabela, { modelo: 'HONDA CB650R', matricula: 'BQ-41-LM', preco: '8500' }), { mensalidade: '150,93', meses: '96' });
+  assert.equal(simulacao(tabela, { modelo: 'DUCATI MONSTER', preco: '8250' }), null); ok('respostas rápidas: mensalidade certa da tabela (pela matrícula quando há várias)');
+  db.prepare("INSERT OR REPLACE INTO stock_sync (matricula, marca, modelo, km, data_matricula, preco, link) VALUES ('MT-07-AA','YAMAHA','MT07',12000,'2021-05-01','6950','https://www.olx.pt/d/anuncio/yamaha-mt-07-x-IDx.html')").run();
+  await j('/api/config', { method: 'PUT', body: JSON.stringify({ instrucoes: tabela }) });
+  await post('/api/importar', { conversas: [{ canal: 'olx', externo_id: 'olx:abc-123', nome: 'Gonçalo Pires', mota_id: 'MT-07-AA', mensagens: [{ direcao: 'inbound', texto: 'Fazem financiamento?', data: '2026-11-19T10:00:00Z' }] }] });
+  const g = (await j('/api/leads')).b.find(l => l.nome === 'Gonçalo Pires').id;
+  r = await post(`/api/leads/${g}/rapida`, { tipo: 'financiamento' }); assert.match(r.b.texto, /^(Bom dia|Boa tarde|Boa noite) Gonçalo, como está\?\n\nPara a YAMAHA MT07, a simulação fica em 134,86€ por mês, durante 84 meses\. Fica sujeito a aprovação\. Tem interesse\?\n\nMelhores cumprimentos/);
+  r = await post(`/api/leads/${g}/rapida`, { tipo: 'documentos' }); assert.match(r.b.texto, /\n\nCartão de Cidadão\/Título de residência\nComprovativo de IBAN\n/); assert.match(r.b.texto, /Pode enviá-los por WhatsApp para o 927887107/);
+  r = await post(`/api/leads/${g}/rapida`, { tipo: 'disponivel' }); assert.match(r.b.texto, /Sim, a YAMAHA MT07 ainda se encontra disponível\. Tem interesse em vê-la\?/);
+  r = await post(`/api/leads/${g}/rapida`, { tipo: 'visita' }); assert.match(r.b.texto, /Estrada Vale de Mulatas/);
+  assert.equal((await j('/api/leads/' + g)).b.mensagens.filter(m => m.estado === 'rascunho').length, 1);
+  assert.equal((await post(`/api/leads/${g}/rapida`, { tipo: 'xpto' })).s, 400); ok('respostas rápidas: financiamento, documentos, disponível e visita com saudação e assinatura');
+  r = await j('/api/leads/' + g); assert.equal(r.b.olx_uuid, 'abc-123'); ok('ficha traz o id da conversa no OLX (para abrir diretamente)');
+  r = await post(`/api/leads/${g}/regerar`, {}); assert.ok(r.b.rascunho_id); assert.equal((await post('/api/leads/999999/regerar', {})).s, 404); ok('gerar outra versão do rascunho');
+  await j('/api/config', { method: 'PUT', body: JSON.stringify({ instrucoes: 'Morada: Estrada Vale de Mulatas, Lote 7, Armazém A, Setúbal.' }) });
+}
+
 // ---------- quadro de mensagens novas ----------
 await post('/api/importar', { conversas: [{ canal: 'olx', externo_id: 'vista-1', nome: 'Historico', mensagens: [{ direcao: 'inbound', texto: 'olá', data: '2026-11-01T10:00:00Z' }] }] });
 r = await j('/api/leads'); assert.equal(r.b.find(l => l.nome === 'Historico').novas, 0);

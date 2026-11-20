@@ -10,7 +10,8 @@ import { processInbound, registarSemResposta } from './leads.js';
 import { instrucoesStand, assinaturaOlx, telefoneStand } from './assistant.js';
 import { importarConversas } from './import.js';
 import { sugestoes, juntarLeads } from './juntar.js';
-import { prepararRetoma } from './retoma.js';
+import { prepararRetoma, prepararRapida } from './retoma.js';
+import { responderUltima } from './leads.js';
 import { urlAutorizacao, concluirAutorizacao, olxStatus, syncOlx, desligar, startOlxSync } from './olx.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -162,13 +163,22 @@ async function api(req, res, url) {
   if (M === 'GET' && (m = p.match(/^\/api\/leads\/(\d+)\/sugestoes$/))) return send(res, 200, sugestoes(m[1]));
   if (M === 'POST' && (m = p.match(/^\/api\/leads\/(\d+)\/juntar$/))) return send(res, 200, juntarLeads(m[1], (await json(req)).com));
   if (M === 'POST' && (m = p.match(/^\/api\/leads\/(\d+)\/retoma$/))) return send(res, 200, prepararRetoma(m[1], await json(req)));
+  if (M === 'POST' && (m = p.match(/^\/api\/leads\/(\d+)\/rapida$/))) return send(res, 200, prepararRapida(m[1], (await json(req)).tipo));
+  if (M === 'POST' && (m = p.match(/^\/api\/leads\/(\d+)\/regerar$/))) {
+    const lead = db.prepare('SELECT * FROM leads WHERE id=?').get(m[1]);
+    if (!lead) return send(res, 404, { erro: 'Lead não encontrada' });
+    const canal = db.prepare("SELECT canal FROM mensagens WHERE lead_id=? AND direcao='inbound' ORDER BY criado_em DESC, id DESC LIMIT 1").get(m[1])?.canal || lead.canal;
+    return send(res, 200, await responderUltima(Number(m[1]), canal));
+  }
 
   if ((m = p.match(/^\/api\/leads\/(\d+)$/))) {
     const id = m[1];
     const lead = db.prepare('SELECT * FROM leads WHERE id=?').get(id);
     if (!lead) return send(res, 404, { erro: 'Lead não encontrada' });
     if (M === 'GET' && url.searchParams.get('visto') === '1') db.prepare(`UPDATE leads SET visto_em=${VISTO_AGORA} WHERE id=?`).run(id);
-    if (M === 'GET') return send(res, 200, { lead, ultimo_canal: db.prepare("SELECT canal FROM mensagens WHERE lead_id=? AND direcao='inbound' ORDER BY criado_em DESC, id DESC LIMIT 1").get(id)?.canal || lead.canal, mensagens: db.prepare('SELECT * FROM mensagens WHERE lead_id=? ORDER BY criado_em, id').all(id) });
+    const ext = [lead.externo_id, ...db.prepare('SELECT externo_id FROM lead_externos WHERE lead_id=?').all(id).map(x => x.externo_id)].find(x => /^imp:olx:/.test(x || ''));
+    const olx_uuid = ext ? ext.slice('imp:olx:'.length) : null;
+    if (M === 'GET') return send(res, 200, { lead, olx_uuid, ultimo_canal: db.prepare("SELECT canal FROM mensagens WHERE lead_id=? AND direcao='inbound' ORDER BY criado_em DESC, id DESC LIMIT 1").get(id)?.canal || lead.canal, mensagens: db.prepare('SELECT * FROM mensagens WHERE lead_id=? ORDER BY criado_em, id').all(id) });
     if (M === 'DELETE') {
       db.exec('BEGIN');
       try {

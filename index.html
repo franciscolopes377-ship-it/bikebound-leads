@@ -2,287 +2,616 @@
 <html lang="pt-PT">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>BikeBound Leads</title>
 <style>
-:root{--bg:#f6f6f4;--card:#fff;--ink:#1b1b1a;--mut:#6b6b66;--line:#e3e3df;--acc:#c8341b;--acc-ink:#fff;--ok:#1f7a4d;--warm:#b8650a;--cold:#3b6ea5}
-@media (prefers-color-scheme:dark){:root{--bg:#121211;--card:#1c1c1a;--ink:#f0efea;--mut:#9a9992;--line:#2d2d2a;--acc:#e5533a;--ok:#4cc38a;--warm:#f0a04b;--cold:#7fb0e6}}
+:root{--bg:#f4f4f2;--sf:#fff;--ink:#1b1b1a;--ink2:#3d3d39;--mut:#6b6b66;--line:#e4e4e0;--line2:#d9d9d4;--acc:#c8341b;--acc-ink:#fff;--acc-soft:#fff6f3;--acc-txt:#a1290f;
+  --quente:#c8341b;--morno:#b45309;--frio:#2f6fb0;--retoma:#1f8a50;--ok-soft:#e7f4ec;--ok-ink:#1f6f43;--sel:#f8efea;--chip:#fafaf8;--pill:#efefeb}
+@media (prefers-color-scheme:dark){:root{--bg:#121211;--sf:#1c1c1a;--ink:#f0efea;--ink2:#cfcec8;--mut:#9a9992;--line:#2d2d2a;--line2:#3a3a36;--acc:#e5533a;--acc-soft:#2a1a16;--acc-txt:#ff9b85;
+  --quente:#ef6a50;--morno:#f0a04b;--frio:#7fb0e6;--retoma:#4cc38a;--ok-soft:#15291e;--ok-ink:#6fd39d;--sel:#29211d;--chip:#232321;--pill:#2a2a27}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-header{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px;z-index:5}
-h1{font-size:17px;margin:0 0 8px}
-nav{display:flex;gap:6px;flex-wrap:wrap}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 button,select,textarea,input{font:inherit;color:inherit}
-.tab,.chip{border:1px solid var(--line);background:var(--card);padding:6px 12px;border-radius:999px;cursor:pointer}
-.tab.on,.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-main{max-width:820px;margin:0 auto;padding:12px 16px 60px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button{cursor:pointer}
+a{color:inherit}
+.hide{display:none!important}
+.mut{color:var(--mut)}.small{font-size:13px}.err{color:var(--acc-txt)}
+/* ---------- topo ---------- */
+.top{height:58px;background:var(--sf);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 16px;position:relative;z-index:6}
+.marca{font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.marca i{width:26px;height:26px;border-radius:7px;background:var(--acc);display:inline-block}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;border-radius:999px;padding:4px 10px;background:var(--pill);color:var(--ink2);white-space:nowrap;border:0}
+.pill.ok{background:var(--ok-soft);color:var(--ok-ink)}
+.pill.bad{background:var(--acc-soft);color:var(--acc-txt)}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
 .sp{flex:1}
-.lead{cursor:pointer}
-.lead:hover{border-color:var(--mut)}
-.tag{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
-.quente{color:var(--acc)}.morno{color:var(--warm)}.frio{color:var(--cold)}.retoma{color:var(--ok)}
-.mut{color:var(--mut)}.small{font-size:13px}
-.msg{padding:8px 12px;border-radius:12px;margin:6px 0;max-width:88%;white-space:pre-wrap;word-wrap:break-word}
-.in{background:var(--bg);border:1px solid var(--line)}
-.out{background:var(--ink);color:var(--bg);margin-left:auto}
-.draft{border:2px dashed var(--acc);background:var(--card);color:var(--ink);margin-left:0;max-width:100%}
-textarea{width:100%;min-height:110px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
-input,select{padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);width:100%}
-label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
-.btn{border:0;background:var(--acc);color:var(--acc-ink);padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600}
-.btn.sec{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:400}
-.alert{background:var(--acc);color:var(--acc-ink);padding:8px 12px;border-radius:8px;margin:8px 0}
-.err{color:var(--acc)}
-.hide{display:none}
+.btn{border:0;background:var(--acc);color:var(--acc-ink);height:40px;padding:0 16px;border-radius:10px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;white-space:nowrap}
+.btn:disabled{opacity:.6;cursor:default}
+.btn.sec{background:var(--sf);color:var(--ink);border:1px solid var(--line2);font-weight:500}
+.btn.sm{height:34px;padding:0 12px;font-size:13px}
+.btn.lnk{background:none;border:0;color:var(--mut);padding:0 6px;height:auto;font-weight:500;text-decoration:underline}
+.ico{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--sf);display:inline-flex;align-items:center;justify-content:center;padding:0}
+/* ---------- caixa de entrada ---------- */
+.app{height:calc(100dvh - 58px);display:grid;grid-template-columns:360px minmax(0,1fr) 320px}
+.col{min-height:0;min-width:0;display:flex;flex-direction:column}
+.lista-col{background:var(--sf);border-right:1px solid var(--line)}
+.lista-top{padding:12px 14px 8px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--line)}
+.busca{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:0 12px;height:42px}
+.busca input{border:0;background:transparent;outline:none;flex:1;min-width:0}
+.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;height:34px;padding:0 11px;border-radius:999px;border:1px solid var(--line2);background:var(--sf);font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.tab b{font-size:11px;border-radius:999px;padding:1px 6px;background:var(--pill);color:var(--ink2)}
+.tab.on{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
+.tab.on b{background:var(--acc);color:#fff}
+.lista-f{display:flex;gap:8px;align-items:center;min-width:0}
+.lista-f select{flex:1;min-width:0}
+select,input,textarea{border:1px solid var(--line2);border-radius:10px;background:var(--sf);padding:8px 10px;width:100%}
+.lista-f select{height:36px;padding:0 8px;font-size:13px}
+.lista{flex:1;overflow:auto}
+.item{display:flex;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;background:var(--sf);width:100%;text-align:left;border-left:3px solid transparent;border-top:0;border-right:0}
+.item:hover{background:var(--bg)}
+.item.on{background:var(--sel);border-left-color:var(--acc)}
+.av{width:42px;height:42px;border-radius:50%;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:600;flex:0 0 42px;font-size:16px}
+.av.sm{width:36px;height:36px;flex-basis:36px;font-size:14px}
+.it-b{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.l1{display:flex;align-items:center;gap:6px}
+.nome{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cdot{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+.quente-b{background:var(--quente)}.morno-b{background:var(--morno)}.frio-b{background:var(--frio)}.retoma-b{background:var(--retoma)}
+.hora{margin-left:auto;font-size:12px;color:var(--mut);white-space:nowrap}
+.l2{font-size:12px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.l3{display:flex;align-items:center;gap:6px}
+.txt{font-size:14px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.item.nova .nome,.item.nova .txt,.item.nova .hora{font-weight:600}
+.item.nova .hora{color:var(--acc-txt)}
+.badge{background:var(--acc);color:#fff;border-radius:999px;font-size:11px;font-weight:700;padding:1px 7px}
+.marc{font-size:11px;border-radius:999px;padding:1px 7px;border:1px solid var(--line2);color:var(--ink2);white-space:nowrap}
+.marc.alerta{border-color:var(--acc);color:var(--acc-txt)}
+.lista-rodape{padding:10px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut)}
+.vazio{padding:40px 20px;text-align:center;color:var(--mut)}
+/* ---------- conversa ---------- */
+.conv-col{background:var(--bg);min-width:0}
+.conv-top{background:var(--sf);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;align-items:center;gap:12px;min-height:64px}
+.conv-top .info{display:flex;flex-direction:column;min-width:0}
+.conv-top strong{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conv-top .sub{font-size:12px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tagr{font-size:11px;font-weight:600;color:var(--ok-ink);background:var(--ok-soft);border-radius:999px;padding:4px 9px;white-space:nowrap}
+.voltar{display:none}
+.msgs{flex:1;overflow:auto;padding:16px 20px;display:flex;flex-direction:column;gap:8px}
+.dia{align-self:center;font-size:12px;color:var(--mut);background:var(--pill);border-radius:999px;padding:3px 12px;margin:6px 0}
+.b{max-width:min(78%,620px);padding:9px 12px;font-size:14px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word}
+.b .m{font-size:11px;color:var(--mut);margin-top:3px}
+.b.in{align-self:flex-start;background:var(--sf);border:1px solid var(--line);border-radius:4px 14px 14px 14px}
+.b.out{align-self:flex-end;background:var(--ink);color:var(--bg);border-radius:14px 4px 14px 14px}
+.b.out .m{color:inherit;opacity:.65}
+.comp{background:var(--sf);border-top:1px solid var(--line);padding:10px 16px 14px;display:flex;flex-direction:column;gap:8px}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line2);background:var(--chip);font-size:13px}
+.chip:hover{border-color:var(--ink2)}
+.rlab{font-size:12px;font-weight:600;color:var(--acc-txt);display:flex;align-items:center;gap:8px}
+.rasc{border:1.5px solid var(--acc);background:var(--acc-soft);border-radius:12px;padding:9px 11px;min-height:120px;max-height:40vh;resize:vertical;font-size:14px;line-height:1.4}
+.aviso{font-size:13px;color:var(--acc-txt);background:var(--acc-soft);border-radius:8px;padding:6px 10px}
+.acoes{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.acoes .btn.prim{flex:1 1 220px;height:46px;font-size:15px}
+.confirma{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--ok-soft);color:var(--ok-ink);border-radius:10px;padding:8px 10px;font-size:14px}
+.sem-r{font-size:13px;color:var(--mut)}
+.colar{border-top:1px dashed var(--line2);padding-top:8px;display:flex;flex-direction:column;gap:6px}
+.colar .row{display:flex;gap:6px}
+.vazio-conv{flex:1;display:flex;align-items:center;justify-content:center;color:var(--mut);text-align:center;padding:30px}
+/* ---------- painel lateral ---------- */
+.lado{background:var(--sf);border-left:1px solid var(--line);overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.lado-top{display:none}
+.cx{border:1px solid var(--line);border-radius:12px;padding:12px}
+.cx h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);font-weight:600}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:2px 0}
+.kv span:first-child{color:var(--mut)}
+.preco{font-size:22px;font-weight:700}
+.etapas{display:flex;flex-direction:column;gap:4px}
+.etapa{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--sf);border-radius:8px;height:36px;padding:0 10px;font-size:14px;text-align:left}
+.etapa.on{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
+.etapa .n{width:18px;height:18px;border-radius:50%;border:1.5px solid currentColor;font-size:11px;display:inline-flex;align-items:center;justify-content:center}
+.cx.ret{border-color:var(--retoma)}
+.cx.ret h3{color:var(--ok-ink)}
+.vbtns{display:flex;flex-direction:column;gap:6px}
+.vbtns .btn{justify-content:flex-start}
+.alerta-cx{background:var(--acc-soft);border-color:var(--acc)}
+.alerta-cx p{margin:0 0 8px;font-size:14px}
+.cx label{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}
+/* ---------- definições e janelas ---------- */
+.pag{height:calc(100dvh - 58px);overflow:auto}
+.pag-in{max-width:860px;margin:0 auto;padding:16px 16px 60px}
+.card{background:var(--sf);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:12px 0}
+.card label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+.card .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.stk{font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}
+.fundo{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20;display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow:auto}
+.janela{background:var(--sf);border-radius:14px;width:100%;max-width:520px;padding:18px}
+.janela h2{margin:0 0 4px;font-size:18px}
+.janela label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+.fab{display:none}
+/* ---------- ecrãs médios: painel lateral como gaveta ---------- */
+@media (max-width:1199px){
+  .app{grid-template-columns:340px minmax(0,1fr)}
+  .lado{position:fixed;top:0;right:0;bottom:0;width:min(360px,92vw);z-index:15;box-shadow:-8px 0 24px rgba(0,0,0,.15);transform:translateX(105%);transition:transform .2s}
+  .lado.aberto{transform:none}
+  .lado-top{display:flex;align-items:center}
+}
+@media (min-width:1200px){.so-gaveta{display:none!important}}
+/* ---------- telemóvel ---------- */
+@media (max-width:819px){
+  .top{height:54px;padding:0 10px;gap:8px}
+  .app,.pag{height:calc(100dvh - 54px)}
+  .app{grid-template-columns:minmax(0,1fr)}
+  .lista-rodape{padding-right:86px}
+  .app.com-lead .lista-col{display:none}
+  .app:not(.com-lead) .conv-col{display:none}
+  .lista-col{border-right:0}
+  .voltar{display:inline-flex;width:40px;height:40px;border:0;background:none;padding:0;align-items:center;justify-content:center;margin-left:-6px}
+  .conv-top{padding:8px 10px;gap:8px}
+  .msgs{padding:12px}
+  .b{max-width:86%}
+  .comp{padding:8px 10px 12px}
+  .rasc{min-height:110px}
+  .top .nova-top,.top .marca span{display:none}
+  .fab{display:inline-flex;position:fixed;right:18px;bottom:22px;width:56px;height:56px;border-radius:50%;border:0;background:var(--acc);color:#fff;font-size:28px;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(0,0,0,.2);z-index:5}
+  .app.com-lead~.fab{display:none}
+  .ver-olx-t{display:none}
+}
 </style>
 </head>
 <body>
-<header>
-  <h1>BikeBound · Leads</h1>
-  <nav>
-    <button class="tab on" data-v="leads">Leads</button>
-    <button class="tab" data-v="nova">Nova mensagem</button>
-    <button class="tab" data-v="stock">Stock</button>
-    <button class="tab" data-v="config">Instruções</button>
-  </nav>
+<header class="top">
+  <div class="marca"><i aria-hidden="true"></i><span>BikeBound Leads</span></div>
+  <button class="pill" id="olx-pill" title="Atualizar agora">OLX…</button>
+  <div class="sp"></div>
+  <button class="btn nova-top" id="b-nova">+ Nova mensagem</button>
+  <button class="ico" id="b-def" aria-label="Definições" title="Stock, instruções, OLX e cópias">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
 </header>
-<main>
-  <section id="v-leads">
-    <div class="row" id="filtros"></div>
-    <select id="f-mota" style="margin-top:8px"><option value="">Todas as motas</option></select>
-    <div id="lista"></div>
-    <div id="ficha" class="hide"></div>
-  </section>
 
-  <section id="v-nova" class="hide">
-    <div class="card">
-      <p class="mut small">Cola a mensagem do cliente (OLX, ou WhatsApp enquanto a ligação automática não está ativa). O assistente prepara um rascunho; nada é enviado.</p>
-      <label>Canal</label>
-      <select id="n-canal"><option value="olx">OLX</option><option value="whatsapp">WhatsApp</option></select>
-      <label>Cliente</label>
-      <select id="n-lead"><option value="">Novo cliente</option></select>
-      <label>Mota do anúncio (opcional)</label>
-      <select id="n-mota"><option value="">— deixar o assistente deduzir pelo texto —</option></select>
-      <div id="n-novo">
-      <label>Nome do cliente</label><input id="n-nome" placeholder="Como aparece no chat">
-      <label>Telefone (opcional)</label><input id="n-tel" inputmode="tel">
+<!-- ================= caixa de entrada ================= -->
+<div class="app" id="app">
+  <section class="col lista-col" aria-label="Conversas">
+    <div class="lista-top">
+      <label class="busca">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="color:var(--mut)"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input type="search" id="q" placeholder="Nome, telefone ou mota" aria-label="Pesquisar">
+      </label>
+      <nav class="tabs" id="tabs" aria-label="Filtros"></nav>
+      <div class="lista-f">
+        <select id="f-mota" aria-label="Filtrar por mota"><option value="">Todas as motas</option></select>
+        <button class="btn lnk hide" id="b-vistas">Marcar todas como vistas</button>
       </div>
-      <label>Mensagem do cliente</label><textarea id="n-texto"></textarea>
-      <div class="row" style="margin-top:10px"><button class="btn" id="n-ok">Gerar rascunho</button><span id="n-msg" class="small mut"></span></div>
     </div>
+    <div class="lista" id="lista"></div>
+    <div class="lista-rodape"><span id="atualizado"></span><span class="sp"></span><button class="btn sec sm" id="b-atualizar">↻ Atualizar</button></div>
   </section>
 
-  <section id="v-stock" class="hide">
+  <section class="col conv-col" id="conv" aria-label="Conversa">
+    <div class="vazio-conv">Escolhe uma conversa à esquerda.</div>
+  </section>
+
+  <aside class="lado" id="lado" aria-label="Detalhes da lead"></aside>
+</div>
+<button class="fab" id="fab" aria-label="Nova mensagem">+</button>
+
+<!-- ================= definições ================= -->
+<div class="pag hide" id="pag-def">
+ <div class="pag-in">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <button class="btn sec sm" id="def-voltar">← Voltar às leads</button>
+    <nav class="tabs" id="def-tabs">
+      <button class="tab on" data-d="stock">Stock</button>
+      <button class="tab" data-d="instr">Instruções</button>
+      <button class="tab" data-d="olx">OLX</button>
+      <button class="tab" data-d="dados">Importar e cópia</button>
+    </nav>
+  </div>
+
+  <div id="d-stock">
     <div class="card">
       <div id="sync-estado" class="small"></div>
-      <div class="row" style="margin-top:8px"><button class="btn sec" id="sync-ok">Sincronizar agora</button><span id="sync-msg" class="small mut"></span></div>
+      <div class="row"><button class="btn sec" id="sync-ok">Sincronizar agora</button><span id="sync-msg" class="small mut"></span></div>
     </div>
     <div class="card">
       <strong>Preços e links (por matrícula)</strong>
       <p class="small mut">Só é preciso para motas sem preço ou link na BikeBound (o que estiver na BikeBound tem prioridade). CSV com as colunas: matricula, preco, link (e opcionalmente estado). Substitui a lista anterior.</p>
       <input type="file" id="p-file" accept=".csv,text/csv">
-      <div class="row" style="margin-top:10px"><button class="btn" id="p-ok">Carregar preços</button><span id="p-msg" class="small mut"></span></div>
+      <div class="row"><button class="btn" id="p-ok">Carregar preços</button><span id="p-msg" class="small mut"></span></div>
     </div>
     <div class="card">
       <strong>Stock manual (alternativa)</strong>
       <p class="small mut">Só usado se a sincronização com a BikeBound não estiver ativa. CSV com: modelo, mes_ano, km, preco, estado, link.</p>
       <input type="file" id="s-file" accept=".csv,text/csv">
-      <div class="row" style="margin-top:10px"><button class="btn" id="s-ok">Carregar stock</button><span id="s-msg" class="small mut"></span></div>
+      <div class="row"><button class="btn" id="s-ok">Carregar stock</button><span id="s-msg" class="small mut"></span></div>
     </div>
-    <div id="s-lista"></div>
-  </section>
-  <section id="v-config" class="hide">
+    <div class="card" id="s-lista"></div>
+  </div>
+
+  <div id="d-instr" class="hide">
     <div class="card">
       <strong>Instruções do stand</strong>
-      <p class="small mut">O assistente segue este texto em todas as respostas. Escreve aqui o que ele deve saber: horário, morada, garantia, entregas, respostas habituais. Podes colar aqui o guia de respostas completo, incluindo a tabela de financiamento.</p>
+      <p class="small mut">O assistente segue este texto em todas as respostas: horário, morada, garantia, entregas, respostas habituais. Podes colar aqui o guia de respostas completo, incluindo a tabela de financiamento.</p>
       <textarea id="c-instr" style="min-height:320px" maxlength="20000"></textarea>
       <label>Telefone do stand (para onde o cliente envia documentos de financiamento)</label>
       <input id="c-tel" inputmode="tel" maxlength="30">
       <label>Assinatura das respostas (acrescentada automaticamente)</label>
       <textarea id="c-ass" style="min-height:96px" maxlength="300"></textarea>
-      <div class="row" style="margin-top:10px"><button class="btn" id="c-ok">Guardar</button><span id="c-msg" class="small mut"></span></div>
+      <div class="row"><button class="btn" id="c-ok">Guardar</button><span id="c-msg" class="small mut"></span></div>
     </div>
+  </div>
+
+  <div id="d-olx" class="hide">
     <div class="card">
       <strong>Ligação ao OLX</strong>
       <div id="olx-estado" class="small" style="margin:6px 0"></div>
       <div class="row">
-        <a class="btn" id="olx-ligar" href="/olx/ligar" style="text-decoration:none">Ligar ao OLX</a>
+        <a class="btn" id="olx-ligar" href="/olx/ligar">Ligar ao OLX</a>
         <button class="btn sec" id="olx-sync">Sincronizar agora</button>
         <button class="btn sec" id="olx-desligar">Desligar</button>
       </div>
       <p class="small mut">Lê as conversas das motas em stock a cada 2 minutos e prepara rascunhos para as mensagens novas. Não envia nada aos clientes.</p>
     </div>
+  </div>
+
+  <div id="d-dados" class="hide">
     <div class="card">
       <strong>Importar conversas</strong>
-      <p class="small mut">Carrega um ficheiro de conversas já existentes (por exemplo do OLX). Só regista o histórico: não cria rascunhos nem envia nada. Repetir o mesmo ficheiro não duplica.</p>
+      <p class="small mut">Carrega um ficheiro de conversas já existentes. Só regista o histórico: não cria rascunhos nem envia nada. Repetir o mesmo ficheiro não duplica.</p>
       <input type="file" id="i-file" accept=".json,application/json">
-      <div class="row" style="margin-top:10px"><button class="btn" id="i-ok">Importar</button><span id="i-msg" class="small mut"></span></div>
+      <div class="row"><button class="btn" id="i-ok">Importar</button><span id="i-msg" class="small mut"></span></div>
     </div>
     <div class="card">
       <strong>Cópia de segurança</strong>
       <p class="small mut">Descarrega todas as leads e conversas num ficheiro. Faz isto de vez em quando e guarda-o em local seguro (tem dados de clientes).</p>
-      <a class="btn sec" href="/api/export" download style="display:inline-block;text-decoration:none">Descarregar cópia</a>
+      <div class="row"><a class="btn sec" href="/api/export" download>Descarregar cópia</a></div>
     </div>
-  </section>
-</main>
+  </div>
+ </div>
+</div>
+
+<!-- ================= nova mensagem ================= -->
+<div class="fundo hide" id="j-nova" role="dialog" aria-modal="true" aria-labelledby="j-nova-t">
+  <div class="janela">
+    <h2 id="j-nova-t">Nova mensagem de um cliente</h2>
+    <p class="small mut" style="margin:0">Cola a mensagem do cliente (OLX ou WhatsApp). O assistente prepara um rascunho; nada é enviado.</p>
+    <label>Canal</label>
+    <select id="n-canal"><option value="olx">OLX</option><option value="whatsapp">WhatsApp</option></select>
+    <label>Cliente</label>
+    <select id="n-lead"><option value="">Novo cliente</option></select>
+    <div id="n-novo">
+      <label>Nome do cliente</label><input id="n-nome" placeholder="Como aparece no chat">
+      <label>Telefone (opcional)</label><input id="n-tel" inputmode="tel">
+    </div>
+    <label>Mota do anúncio (opcional)</label>
+    <select id="n-mota"><option value="">— deixar o assistente deduzir pelo texto —</option></select>
+    <label>Mensagem do cliente</label><textarea id="n-texto" style="min-height:110px"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
+      <button class="btn" id="n-ok">Gerar rascunho</button>
+      <button class="btn sec" id="n-fechar">Cancelar</button>
+      <span id="n-msg" class="small mut"></span>
+    </div>
+  </div>
+</div>
 
 <script>
 const $=s=>document.querySelector(s);
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
-const api=async(u,o={})=>{const r=await fetch(u,o);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.erro||('erro '+r.status));return j};
-let filtro='',fMota='',atual=null;
-const dataPt=d=>{if(!d)return '';const t=new Date(String(d).replace(' ','T')+'Z');return isNaN(t)?'':t.toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})};
+const api=async(u,o={})=>{if(o.body&&!o.headers)o.headers={'content-type':'application/json'};const r=await fetch(u,o);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.erro||('erro '+r.status));return j};
+const post=(u,b)=>api(u,{method:'POST',body:b===undefined?undefined:JSON.stringify(b)});
+const quando=d=>{if(!d)return null;const t=new Date(String(d).replace(' ','T')+(/[zZ]|[+-]\d\d:?\d\d$/.test(d)?'':'Z'));return isNaN(t)?null:t};
+const hhmm=t=>t.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+const mesmoDia=(a,b)=>a.toDateString()===b.toDateString();
+function horaCurta(d){const t=quando(d);if(!t)return '';const h=new Date();if(mesmoDia(t,h))return hhmm(t);const o=new Date(h);o.setDate(h.getDate()-1);if(mesmoDia(t,o))return 'ontem';return t.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}
+function nomeDia(t){const h=new Date();if(mesmoDia(t,h))return 'Hoje';const o=new Date(h);o.setDate(h.getDate()-1);if(mesmoDia(t,o))return 'Ontem';return t.toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long',year:t.getFullYear()===h.getFullYear()?undefined:'numeric'})}
+const CORES=['#2f6f8f','#8a4f9e','#b0602f','#3f7d4f','#5a5fa8','#9e5a4f','#4f7f9e','#7a6a2f','#a34f6f','#2f8a7f'];
+const corDe=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))|0;return CORES[Math.abs(h)%CORES.length]};
+const nomeLead=r=>r.nome||r.telefone||('Cliente #'+r.id);
+const canalNome=c=>c==='whatsapp'?'WhatsApp':c==='olx'?'OLX':c;
+const eur=v=>{const n=Number(String(v).replace(/[^\d,.]/g,'').replace(/\.(?=\d{3}\b)/g,'').replace(',','.'));return n?String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'€':String(v)};
+const avatar=(r,c='')=>{const a=el('span','av'+c,(nomeLead(r).trim()[0]||'?').toUpperCase());a.style.background=corDe(nomeLead(r)+r.id);a.setAttribute('aria-hidden','true');return a};
 
-document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));
-  ['leads','nova','stock','config'].forEach(v=>$('#v-'+v).classList.toggle('hide',v!==b.dataset.v));
-  if(b.dataset.v==='leads')voltar(); if(b.dataset.v==='stock')carregaStock(); if(b.dataset.v==='nova'){carregaMotas($('#n-mota'));carregaClientes()} if(b.dataset.v==='config')carregaConfig();
-});
+let leads=[],stock=[],olx=null,tab=null,fMota='',q='',atual=null,dados=null,sujo=false,verRetoma=false,abrindo=0;
+const motaDe=lead=>stock.find(x=>[x.modelo,x.mes_ano].filter(Boolean).join(' ')===lead.mota_interesse)||stock.find(x=>x.modelo&&x.modelo===lead.mota_interesse)||null;
+async function carregaStockCache(){try{stock=await api('/api/stock')}catch{}}
 
-function filtros(){
-  const f=$('#filtros');f.replaceChildren();
-  const at=el('button','chip','↻ Atualizar');at.onclick=atualizarAgora;f.append(at);
-  [['','Todas'],['tratar','Por tratar'],['quente','Quentes'],['morno','Mornas'],['frio','Frias'],['retoma','Retomas']].forEach(([v,t])=>{
-    const b=el('button','chip'+(filtro===v?' on':''),t);b.onclick=()=>{filtro=v;voltar()};f.append(b)});
-}
-async function voltar(){
-  atual=null;$('#ficha').classList.add('hide');$('#lista').classList.remove('hide');$('#filtros').classList.remove('hide');$('#f-mota').classList.remove('hide');
-  filtros();const l=$('#lista');
-  const [todas,olx]=await Promise.all([api('/api/leads'),api('/api/olx').catch(()=>null)]);
-  l.replaceChildren();
-  // interessados por mota
-  const cont={};todas.forEach(r=>{if(r.mota_interesse)cont[r.mota_interesse]=(cont[r.mota_interesse]||0)+1});
+/* ---------------- lista ---------------- */
+const TABS=[
+  ['novas','Novas',r=>r.novas>0],
+  ['responder','Por responder',r=>r.rascunhos>0||!!r.alertar],
+  ['curso','Em curso',r=>['em_curso','visita_marcada'].includes(r.estado)],
+  ['retomas','Retomas',r=>r.classificacao==='retoma'||!!r.retoma],
+  ['todas','Todas',()=>true]];
+async function carregaLista(){
+  const [l,o]=await Promise.all([api('/api/leads'),api('/api/olx').catch(()=>null)]);
+  leads=l;olx=o;
+  if(tab==null)tab=leads.some(r=>r.novas>0)?'novas':'todas';
+  pill();
+  const n=leads.filter(r=>r.novas>0).length;
+  document.title=(n?'('+n+') ':'')+'BikeBound Leads';
+  $('#atualizado').textContent='Atualizado às '+hhmm(new Date());
+  // filtro por mota
+  const cont={};leads.forEach(r=>{if(r.mota_interesse)cont[r.mota_interesse]=(cont[r.mota_interesse]||0)+1});
   const sm=$('#f-mota');while(sm.options.length>1)sm.remove(1);
-  Object.entries(cont).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).forEach(([k,n])=>{const o=el('option','',k+' ('+n+')');o.value=k;sm.append(o)});
+  Object.entries(cont).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).forEach(([k,c])=>{const op=el('option','',k+' ('+c+')');op.value=k;sm.append(op)});
   if(fMota&&!cont[fMota])fMota='';sm.value=fMota;
-  // estado da ligação ao OLX
-  const hora=d=>new Date(d).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
-  const est=el('p','small mut');
-  est.textContent='Página atualizada às '+hora(Date.now())+(olx&&olx.ligado?(' · OLX verificado às '+(olx.ultima_sync?hora(olx.ultima_sync):'—')):' · OLX não ligado');
-  l.append(est);
-  if(olx&&olx.erro)l.append(el('div','alert','Erro na ligação ao OLX: '+olx.erro));
-  // quadro de mensagens novas
-  const novas=todas.filter(r=>r.novas>0);
-  if(novas.length){
-    const q=el('div','card');q.style.borderColor='var(--acc)';q.style.borderWidth='2px';
-    const t=el('div','row');t.append(el('strong','','Mensagens novas ('+novas.length+')'));
-    const sp=el('span','sp');const mv=el('button','btn sec','Marcar todas como vistas');
-    mv.onclick=async e=>{e.stopPropagation();await api('/api/leads/visto-todas',{method:'POST'});voltar()};
-    t.append(sp,mv);q.append(t);novas.forEach(r=>q.append(cartao(r,true)));l.append(q);
-  }
-  const rows=todas.filter(r=>!(r.novas>0)&&(!filtro||(filtro==='tratar'?(r.alertar||r.rascunhos):r.classificacao===filtro))&&(!fMota||r.mota_interesse===fMota));
-  l.append(el('p','small mut',rows.length+(rows.length===1?' lead':' leads')+' · mais recentes primeiro'));
-  if(!rows.length)l.append(el('p','mut',todas.length?'Nenhuma lead com estes filtros.':'Ainda sem leads.'));
-  rows.forEach(r=>l.append(cartao(r,false)));
+  renderLista();
+  // se a conversa aberta recebeu mensagem nova, recarrega-a (sem estragar um rascunho que está a ser editado)
+  if(atual!=null&&dados){const r=leads.find(x=>x.id===atual);
+    if(!r){fechaLead();return}
+    if(r.ultima_cliente_em&&r.ultima_cliente_em!==dados.ultima_cliente_em&&!sujo)abre(atual,{silencioso:true})}
 }
-function cartao(r,nova){
-  const c=el('div','card lead');if(nova){c.style.margin='8px 0 0'}
-  const top=el('div','row');
-  top.append(el('strong','',r.nome||r.telefone||('Cliente #'+r.id)),el('span','tag '+r.classificacao,r.classificacao));(r.canais||r.canal).split(',').forEach(x=>top.append(el('span','tag mut',x)));
-  if(nova)top.append(el('span','tag quente',r.novas+(r.novas===1?' nova':' novas')));
-  if(r.alertar)top.append(el('span','tag quente','⚠ avisar equipa'));
-  if(r.rascunhos)top.append(el('span','tag','✎ rascunho'));
-  c.append(top);
-  // só a mensagem do cliente
-  if(r.ultima){const u=el('div','',(r.ultima.length>160?r.ultima.slice(0,160)+'…':r.ultima));u.style.margin='4px 0';c.append(u)}
-  c.append(el('div','small mut',(r.mota_interesse?r.mota_interesse+' · ':'')+'estado: '+r.estado.replace('_',' ')+((r.ultima_cliente_em||r.atualizado_em)?' · '+dataPt(r.ultima_cliente_em||r.atualizado_em):'')));
-  c.onclick=()=>abre(r.id);return c;
+function pill(){
+  const p=$('#olx-pill');p.replaceChildren();p.className='pill';
+  if(olx&&olx.erro){p.classList.add('bad');p.append(el('span','dot'),'OLX com erro');p.title=olx.erro;return}
+  if(olx&&olx.ligado){p.classList.add('ok');p.append(el('span','dot'),'OLX ligado'+(olx.ultima_sync?' · '+hhmm(new Date(olx.ultima_sync)):''));p.title='Verificado às '+(olx.ultima_sync?hhmm(new Date(olx.ultima_sync)):'—')+'. Clica para atualizar agora.';return}
+  p.append(el('span','dot'),'OLX não ligado');p.title='Liga o OLX nas definições';
 }
-async function abre(id){
-  atual=id;const {lead,mensagens,ultimo_canal}=await api('/api/leads/'+id+'?visto=1');
-  const variosCanais=new Set(mensagens.map(m=>m.canal)).size>1;
-  $('#lista').classList.add('hide');$('#filtros').classList.add('hide');$('#f-mota').classList.add('hide');
-  const f=$('#ficha');f.classList.remove('hide');f.replaceChildren();
-  const back=el('button','btn sec','← Voltar');back.onclick=voltar;f.append(back);
-  const h=el('div','card');
-  const top=el('div','row');top.append(el('strong','',lead.nome||'Sem nome'),el('span','tag '+lead.classificacao,lead.classificacao));[...new Set(mensagens.map(m=>m.canal).concat(mensagens.length?[]:[lead.canal]))].forEach(c=>top.append(el('span','tag mut',c)));
-  h.append(top);
-  [['Telefone',lead.telefone],['Mota',lead.mota_interesse],['Quer ver',lead.quando_quer_ver],['Retoma',lead.retoma?'sim':null],['Financiamento',lead.financiamento?'sim':null]]
-    .filter(x=>x[1]).forEach(([k,v])=>h.append(el('div','small',k+': '+v)));
-  if(lead.alertar){const a=el('div','alert','⚠ '+(lead.resumo_equipa||'Avisar equipa'));const ok=el('button','btn sec','Já tratado');ok.style.marginLeft='8px';ok.onclick=async()=>{await api('/api/leads/'+id,{method:'PATCH',body:JSON.stringify({alertar:false})});abre(id)};a.append(ok);h.append(a)}
-  const sel=el('select');['novo','em_curso','visita_marcada','vendida','perdida'].forEach(s=>{const o=el('option','',s.replace('_',' '));o.value=s;if(s===lead.estado)o.selected=true;sel.append(o)});
-  sel.onchange=()=>api('/api/leads/'+id,{method:'PATCH',body:JSON.stringify({estado:sel.value})});
-  h.append(el('label','','Estado'),sel);
-  // ---- retoma: a equipa escolhe a resposta ----
-  if(lead.retoma||lead.classificacao==='retoma'){
-    const rc=el('div','card');rc.style.margin='12px 0 0';rc.append(el('strong','','Retoma: o que respondemos?'));
-    const mc=el('input');mc.placeholder='Mota do cliente (opcional, ex.: Kawasaki KSF400)';mc.style.margin='8px 0';
-    const msg=el('div','small mut');
-    const fazer=async(corpo)=>{msg.textContent='A preparar…';try{await api('/api/leads/'+id+'/retoma',{method:'POST',body:JSON.stringify({...corpo,mota_cliente:mc.value})});abre(id)}catch(e){msg.textContent='Erro: '+e.message;msg.className='small err'}};
-    const r1=el('div','row');
-    const b1=el('button','btn sec','Perguntar se está anunciada');b1.onclick=()=>fazer({acao:'anunciada'});
-    const b2=el('button','btn sec','Temos interesse: pedir dados');b2.onclick=()=>fazer({acao:'dados'});
-    const b3=el('button','btn sec','Não temos interesse');b3.onclick=()=>fazer({acao:'recusar'});
-    r1.append(b1,b2,b3);
-    const r2=el('div','row');r2.style.marginTop='8px';
-    const vx=el('input');vx.placeholder='Valor da retoma (€)';vx.inputMode='decimal';vx.style.maxWidth='170px';
-    const vp=el('input');vp.placeholder='Preço da nossa mota (€)';vp.inputMode='decimal';vp.style.maxWidth='190px';
-    const ac=el('span','small');
-    const b4=el('button','btn','Preparar proposta');b4.onclick=()=>fazer({acao:'proposta',valor:vx.value,preco:vp.value});
-    const calc=()=>{const n=v=>Number(String(v).replace(/[^\d,]/g,'').replace(',','.'));const x=n(vx.value),p=n(vp.value);if(!x||!p){ac.textContent='';return}const y=p-x;const eu=v=>String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'€';ac.textContent=y>0?'Acerto: '+eu(y)+' da parte do cliente':y<0?'Acerto: '+eu(-y)+' da nossa parte':'Troca direta, sem acerto'};
-    vx.oninput=calc;vp.oninput=calc;
-    api('/api/stock').then(st=>{const m=st.find(x=>[x.modelo,x.mes_ano].filter(Boolean).join(' ')===lead.mota_interesse);if(m&&m.preco){vp.value=m.preco;calc()}}).catch(()=>{});
-    r2.append(vx,vp,b4);
-    rc.append(mc,r1,el('label','','Proposta: valor da retoma e preço da nossa mota'),r2,ac,msg);h.append(rc);
-  }
-  const ap=el('button','btn sec','Apagar lead');ap.style.marginTop='12px';
-  ap.onclick=async()=>{if(!confirm('Apagar esta lead e toda a conversa? Não dá para desfazer.'))return;
-    try{await api('/api/leads/'+id,{method:'DELETE'});voltar()}catch(e){alert(e.message)}};
-  h.append(ap);f.append(h);
-  const t=el('div','card');
-  mensagens.forEach(m=>{
-    if(m.estado==='descartada')return;
-    if(m.estado==='rascunho'){
-      const box=el('div','msg draft');box.append(el('div','small mut','Rascunho — não enviado'));
-      if(m.aviso)box.append(el('div','small err','⚠ Verificar antes de enviar: '+m.aviso));
-      const ta=el('textarea');ta.value=m.texto;box.append(ta);
-      const r=el('div','row');r.style.marginTop='8px';
-      const cp=el('button','btn','Copiar');cp.onclick=async()=>{try{await navigator.clipboard.writeText(ta.value);cp.textContent='Copiado ✓'}catch{ta.select();document.execCommand('copy');cp.textContent='Copiado ✓'}};
-      const en=el('button','btn sec','Marcar como enviada');en.onclick=async()=>{await api(`/api/mensagens/${m.id}/estado`,{method:'POST',body:JSON.stringify({estado:'enviada',texto:ta.value})});abre(id)};
-      const de=el('button','btn sec','Descartar');de.onclick=async()=>{await api(`/api/mensagens/${m.id}/estado`,{method:'POST',body:JSON.stringify({estado:'descartada'})});abre(id)};
-      r.append(cp,en,de);box.append(r);t.append(box);return}
-    const bl=el('div','msg '+(m.direcao==='inbound'?'in':'out'),m.texto);const dt=el('div','small',(variosCanais?m.canal+' · ':'')+dataPt(m.criado_em));dt.style.opacity='.6';dt.style.marginTop='4px';bl.append(dt);t.append(bl);
+function renderLista(){
+  const t=$('#tabs');t.replaceChildren();
+  TABS.forEach(([k,nome,f])=>{const c=leads.filter(f).length;const b=el('button','tab'+(tab===k?' on':''),nome+' ');b.append(el('b','',String(c)));b.onclick=()=>{tab=k;renderLista()};t.append(b)});
+  $('#b-vistas').classList.toggle('hide',!leads.some(r=>r.novas>0));
+  const f=TABS.find(x=>x[0]===tab)[2];
+  const qq=q.trim().toLowerCase(),qd=qq.replace(/\D/g,'');
+  const rows=leads.filter(r=>f(r)&&(!fMota||r.mota_interesse===fMota)&&(!qq||[r.nome,r.mota_interesse,r.ultima,r.telefone].some(v=>v&&String(v).toLowerCase().includes(qq))||(qd.length>=3&&String(r.telefone||'').replace(/\D/g,'').includes(qd))));
+  const l=$('#lista');l.replaceChildren();
+  if(!rows.length){l.append(el('div','vazio',!leads.length?'Ainda sem leads.':tab==='novas'&&!qq&&!fMota?'Sem mensagens novas. Está tudo visto ✓':'Nenhuma conversa com estes filtros.'));return}
+  rows.forEach(r=>{
+    const it=el('button','item'+(r.novas>0?' nova':'')+(r.id===atual?' on':''));it.type='button';
+    const b=el('span','it-b');
+    const l1=el('span','l1');l1.append(el('span','nome',nomeLead(r)));
+    const d=el('span','cdot '+r.classificacao+'-b');d.title=r.classificacao;l1.append(d);
+    l1.append(el('span','hora',horaCurta(r.ultima_cliente_em||r.atualizado_em)));
+    const canais=(r.canais||r.canal||'').split(',').filter(Boolean).map(canalNome).join(' + ');
+    const l2=el('span','l2',[r.mota_interesse||'Mota por identificar',canais].filter(Boolean).join(' · '));
+    const l3=el('span','l3');l3.append(el('span','txt',r.ultima||'(sem mensagens do cliente)'));
+    if(r.alertar){const a=el('span','marc alerta','⚠');a.title='Avisar equipa';l3.append(a)}
+    if(r.rascunhos){const a=el('span','marc','✎');a.title='Tem rascunho por enviar';l3.append(a)}
+    if(r.novas>0)l3.append(el('span','badge',String(r.novas)));
+    b.append(l1,l2,l3);it.append(avatar(r),b);
+    it.onclick=()=>abre(r.id);
+    l.append(it);
   });
-  f.append(t);
-  const n=el('div','card');n.append(el('label','','Nova mensagem do cliente nesta conversa'));
-  const cs=el('select');[['olx','Mensagem recebida no OLX'],['whatsapp','Mensagem recebida no WhatsApp']].forEach(([v,t])=>{const o=el('option','',t);o.value=v;cs.append(o)});cs.value=ultimo_canal||lead.canal;
-  const ms=el('select');const o0=el('option','','— mota do anúncio (opcional) —');o0.value='';ms.append(o0);carregaMotas(ms);
-  const ta=el('textarea');const go=el('button','btn','Gerar rascunho');go.style.marginTop='8px';
-  go.onclick=async()=>{if(!ta.value.trim())return;go.disabled=true;go.textContent='A preparar…';
-    try{const r=await api('/api/mensagens',{method:'POST',body:JSON.stringify({canal:cs.value,lead_id:id,mota_id:ms.value||null,texto:ta.value})});if(r.erro)alert(r.erro)}catch(e){alert(e.message)}abre(id)};
-  n.append(cs,ms,ta,go);f.append(n);
-  // juntar com outra lead (mesmo cliente noutro canal)
-  const jn=el('div','card');jn.append(el('strong','','É o mesmo cliente que outra lead?'));
-  jn.append(el('p','small mut','Por exemplo, começou no OLX e passou para o WhatsApp. Juntar passa toda a conversa para esta lead e apaga a outra.'));
-  const juntar=async(outro,nome)=>{if(!confirm('Juntar "'+(nome||'Cliente #'+outro)+'" a esta lead? A conversa passa para aqui e a outra lead deixa de existir.'))return;
-    try{await api('/api/leads/'+id+'/juntar',{method:'POST',body:JSON.stringify({com:outro})});abre(id)}catch(e){alert(e.message)}};
-  try{const sg=await api('/api/leads/'+id+'/sugestoes');
-    sg.forEach(s=>{const r=el('div','row');r.style.margin='6px 0';
-      r.append(el('span','small',(s.nome||s.telefone||'Cliente #'+s.id)+' · '+s.canal+(s.mota_interesse?' · '+s.mota_interesse:'')+' ('+s.motivos.join(', ')+')'));
-      const b=el('button','btn sec','Juntar');b.onclick=()=>juntar(s.id,s.nome);r.append(b);jn.append(r)});
-    if(sg.length)h.append(el('div','small err','⚠ Pode haver outra lead deste cliente (ver fim da página).'));}catch{}
-  const sj=el('select');const z=el('option','','— escolher outra lead —');z.value='';sj.append(z);
-  try{(await api('/api/leads')).filter(r=>r.id!==id).forEach(r=>{const o=el('option','',[r.nome||r.telefone||'Cliente #'+r.id,r.canais||r.canal,r.mota_interesse].filter(Boolean).join(' · '));o.value=r.id;o.dataset.nome=r.nome||'';sj.append(o)})}catch{}
-  const bj=el('button','btn sec','Juntar');bj.style.marginTop='8px';bj.onclick=()=>{if(sj.value)juntar(Number(sj.value),sj.selectedOptions[0].dataset.nome)};
-  jn.append(sj,bj);f.append(jn);
 }
+
+/* ---------------- conversa ---------------- */
+function fechaLead(){atual=null;dados=null;sujo=false;$('#app').classList.remove('com-lead');$('#lado').classList.remove('aberto');
+  $('#conv').replaceChildren(el('div','vazio-conv','Escolhe uma conversa à esquerda.'));$('#lado').replaceChildren();renderLista()}
+async function abre(id,{silencioso=false}={}){
+  if(!silencioso&&sujo&&atual!==id&&!confirm('Alteraste o rascunho e ainda não o enviaste. Sair desta conversa?'))return;
+  const meu=++abrindo;
+  if(atual!==id){verRetoma=false}
+  atual=id;
+  let d;try{d=await api('/api/leads/'+id+'?visto=1')}catch(e){if(meu===abrindo){alert(e.message);fechaLead()}return}
+  if(meu!==abrindo)return;
+  const r=leads.find(x=>x.id===id);
+  d.ultima_cliente_em=d.mensagens.filter(m=>m.direcao==='inbound').map(m=>m.criado_em).sort().pop()||null;
+  if(r){r.novas=0;r.ultima_cliente_em=d.ultima_cliente_em||r.ultima_cliente_em;r.rascunhos=d.mensagens.filter(m=>m.estado==='rascunho').length;r.alertar=d.lead.alertar;r.estado=d.lead.estado;r.classificacao=d.lead.classificacao}
+  dados=d;sujo=false;
+  $('#app').classList.add('com-lead');
+  const n=leads.filter(x=>x.novas>0).length;document.title=(n?'('+n+') ':'')+'BikeBound Leads';
+  renderLista();renderConversa();renderLado();
+}
+function linkOlx(){return dados.olx_uuid?'https://www.olx.pt/myaccount/answer/'+encodeURIComponent(dados.olx_uuid)+'/':null}
+function telWa(t){let s=String(t||'').replace(/\D/g,'');if(!s)return null;if(s.startsWith('00'))s=s.slice(2);if(s.length===9)s='351'+s;return s}
+function renderConversa(){
+  const {lead,mensagens,ultimo_canal}=dados;const id=lead.id;const mota=motaDe(lead);
+  const c=$('#conv');c.replaceChildren();
+  // topo
+  const top=el('div','conv-top');
+  const vb=el('button','voltar');vb.setAttribute('aria-label','Voltar à lista');vb.innerHTML='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>';
+  vb.onclick=()=>{if(sujo&&!confirm('Alteraste o rascunho e ainda não o enviaste. Voltar à lista?'))return;fechaLead()};
+  const info=el('div','info');info.append(el('strong','',nomeLead(lead)));
+  const canais=[...new Set(mensagens.map(m=>m.canal).concat(mensagens.length?[]:[lead.canal]))].map(canalNome).join(' + ');
+  info.append(el('span','sub',[lead.mota_interesse||'Mota por identificar',mota&&mota.preco?eur(mota.preco):null,canais].filter(Boolean).join(' · ')));
+  top.append(vb,avatar(lead,' sm'),info,el('span','sp'));
+  if(lead.retoma||lead.classificacao==='retoma')top.append(el('span','tagr','Retoma'));
+  const lo=linkOlx();if(lo){const a=el('a','btn sec sm ver-olx-t','Ver no OLX ↗');a.href=lo;a.target='_blank';a.rel='noopener';top.append(a)}
+  const det=el('button','btn sec sm so-gaveta','Detalhes');det.onclick=()=>$('#lado').classList.add('aberto');top.append(det);
+  c.append(top);
+  // mensagens
+  const ms=el('div','msgs');let ultDia='';
+  const variosCanais=new Set(mensagens.map(m=>m.canal)).size>1;
+  mensagens.forEach(m=>{
+    if(m.estado==='descartada'||m.estado==='rascunho')return;
+    const t=quando(m.criado_em);
+    if(t){const k=t.toDateString();if(k!==ultDia){ultDia=k;ms.append(el('div','dia',nomeDia(t)))}}
+    const b=el('div','b '+(m.direcao==='inbound'?'in':'out'),m.texto);
+    b.append(el('div','m',[variosCanais?canalNome(m.canal):null,t?hhmm(t):null,m.direcao==='outbound'?'enviada':null].filter(Boolean).join(' · ')));
+    ms.append(b);
+  });
+  if(!ms.children.length)ms.append(el('div','vazio-conv','Ainda sem mensagens nesta conversa.'));
+  c.append(ms);
+  // compositor
+  const cp=el('div','comp');
+  const chips=el('div','chips');chips.setAttribute('aria-label','Respostas rápidas');
+  const rapida=async(tipo,b)=>{if(sujo&&!confirm('Substituir o rascunho atual?'))return;const o=b.textContent;b.disabled=true;b.textContent='A preparar…';try{await post('/api/leads/'+id+'/rapida',{tipo});sujo=false;await abre(id,{silencioso:true})}catch(e){alert(e.message);b.disabled=false;b.textContent=o}};
+  const cr=el('button','chip','Retoma');cr.onclick=()=>{verRetoma=true;renderLado();$('#lado').classList.add('aberto');const x=$('#cx-retoma');if(x)x.scrollIntoView({behavior:'smooth',block:'start'})};chips.append(cr);
+  [['disponivel','Disponível'],['visita','Morada e visita'],['garantia','Garantia'],['outras','Outras motas'],['financiamento','Financiamento'],['documentos','Documentos']].forEach(([k,t])=>{const b=el('button','chip',t);b.onclick=()=>rapida(k,b);chips.append(b)});
+  cp.append(chips);
+  const rasc=[...mensagens].reverse().find(m=>m.estado==='rascunho');
+  const canalR=ultimo_canal||lead.canal;
+  if(rasc){
+    const lab=el('label','rlab','Rascunho — ainda não enviado · '+canalNome(canalR));lab.htmlFor='rasc';cp.append(lab);
+    if(rasc.aviso)cp.append(el('div','aviso','⚠ Verificar antes de enviar: '+rasc.aviso));
+    const ta=el('textarea','rasc');ta.id='rasc';ta.value=rasc.texto;ta.oninput=()=>{sujo=ta.value!==rasc.texto};cp.append(ta);
+    const ac=el('div','acoes');
+    const copia=async()=>{try{await navigator.clipboard.writeText(ta.value)}catch{ta.select();document.execCommand('copy')}};
+    const marcar=async()=>{await post(`/api/mensagens/${rasc.id}/estado`,{estado:'enviada',texto:ta.value});sujo=false;if(lead.estado==='novo')await api('/api/leads/'+id,{method:'PATCH',body:JSON.stringify({estado:'em_curso'})}).catch(()=>{});await abre(id,{silencioso:true})};
+    let url=null,rot='Copiar';
+    if(canalR==='whatsapp'){const w=telWa(lead.telefone);if(w){rot='Copiar e abrir WhatsApp'}url=w?()=>'https://wa.me/'+w+'?text='+encodeURIComponent(ta.value):null}
+    else if(lo){rot='Copiar e abrir no OLX';url=()=>lo}
+    const pb=el('button','btn prim',rot);
+    const conf=el('div','confirma hide');
+    pb.onclick=async()=>{await copia();if(url)window.open(url(),'_blank','noopener');pb.textContent='Copiado ✓';conf.classList.remove('hide')};
+    const reg=el('button','btn sec','Gerar outra versão');
+    reg.onclick=async()=>{if(sujo&&!confirm('Substituir o rascunho que alteraste?'))return;reg.disabled=true;reg.textContent='A gerar…';try{const r=await post('/api/leads/'+id+'/regerar');if(r&&r.erro)alert(r.erro);sujo=false;await abre(id,{silencioso:true})}catch(e){alert(e.message);reg.disabled=false;reg.textContent='Gerar outra versão'}};
+    const desc=el('button','btn sec','Descartar');desc.onclick=async()=>{await post(`/api/mensagens/${rasc.id}/estado`,{estado:'descartada'});sujo=false;await abre(id,{silencioso:true})};
+    const env=el('button','btn lnk','Já enviei — marcar como enviada');env.onclick=marcar;
+    ac.append(pb,reg,desc);cp.append(ac);
+    conf.append(el('span','','Enviaste a resposta ao cliente?'));
+    const si=el('button','btn sm','Sim, marcar como enviada');si.onclick=marcar;
+    const nao=el('button','btn sec sm','Ainda não');nao.onclick=()=>{conf.classList.add('hide');pb.textContent=rot};
+    conf.append(si,nao);cp.append(conf);
+    const ln=el('div','acoes');ln.append(env);cp.append(ln);
+  }else{
+    const s=el('div','sem-r','Sem rascunho por enviar. Escolhe uma resposta rápida acima ou ');
+    const g=el('button','btn lnk','gera uma resposta à última mensagem');g.style.padding='0';
+    g.onclick=async()=>{g.disabled=true;g.textContent='a gerar…';try{const r=await post('/api/leads/'+id+'/regerar');if(r&&r.erro)alert(r.erro);await abre(id,{silencioso:true})}catch(e){alert(e.message);g.disabled=false}};
+    s.append(g,'.');cp.append(s);
+  }
+  // colar nova mensagem do cliente nesta conversa
+  const tg=el('button','btn lnk','+ Colar mensagem nova do cliente');tg.style.alignSelf='flex-start';tg.style.padding='0';
+  const box=el('div','colar hide');
+  const row=el('div','row');
+  const cs=el('select');[['olx','Recebida no OLX'],['whatsapp','Recebida no WhatsApp']].forEach(([v,t])=>{const o=el('option','',t);o.value=v;cs.append(o)});cs.value=ultimo_canal||lead.canal;cs.setAttribute('aria-label','Canal');
+  const msel=el('select');const o0=el('option','','Mota (opcional)');o0.value='';msel.append(o0);preencheMotas(msel);msel.setAttribute('aria-label','Mota do anúncio');
+  row.append(cs,msel);
+  const tn=el('textarea');tn.placeholder='Cola aqui a mensagem do cliente';tn.style.minHeight='80px';
+  const go=el('button','btn','Gerar rascunho');go.style.alignSelf='flex-start';
+  go.onclick=async()=>{if(!tn.value.trim())return;if(sujo&&!confirm('O rascunho atual vai ser substituído. Continuar?'))return;go.disabled=true;go.textContent='A preparar…';
+    try{const r=await post('/api/mensagens',{canal:cs.value,lead_id:id,mota_id:msel.value||null,texto:tn.value});if(r.erro)alert(r.erro)}catch(e){alert(e.message)}sujo=false;await carregaLista();abre(id,{silencioso:true})};
+  box.append(row,tn,go);
+  tg.onclick=()=>{box.classList.toggle('hide');tg.classList.toggle('hide');tn.focus()};
+  cp.append(tg,box);
+  c.append(cp);
+  ms.scrollTop=ms.scrollHeight;
+}
+
+/* ---------------- painel lateral ---------------- */
+async function renderLado(){
+  const {lead}=dados;const id=lead.id;const mota=motaDe(lead);
+  const L=$('#lado');L.replaceChildren();
+  const lt=el('div','lado-top');lt.append(el('strong','','Detalhes'),el('span','sp'));const fx=el('button','btn sec sm','Fechar');fx.onclick=()=>L.classList.remove('aberto');lt.append(fx);L.append(lt);
+  // alerta
+  if(lead.alertar){const a=el('div','cx alerta-cx');a.append(el('h3','','⚠ Avisar equipa'),el('p','',lead.resumo_equipa||'Esta lead precisa de atenção.'));
+    const ok=el('button','btn sec sm','Já tratado');ok.onclick=async()=>{await api('/api/leads/'+id,{method:'PATCH',body:JSON.stringify({alertar:false})});dados.lead.alertar=0;const r=leads.find(x=>x.id===id);if(r)r.alertar=0;renderLado();renderLista()};a.append(ok);L.append(a)}
+  // mota
+  const cm=el('div','cx');cm.append(el('h3','','Mota'));
+  if(mota){cm.append(el('div','',mota.modelo+(mota.mes_ano?' · '+mota.mes_ano:'')));
+    cm.append(el('div','preco',mota.preco?eur(mota.preco):'Sem preço'));
+    [['Quilómetros',mota.km?Number(mota.km).toLocaleString('pt-PT')+' km':null],['Matrícula',mota.matricula],['Cor',mota.cor]].filter(x=>x[1]).forEach(([k,v])=>{const r=el('div','kv');r.append(el('span','',k),el('span','',v));cm.append(r)});
+    if(mota.link){const a=el('a','btn sec sm','Ver anúncio ↗');a.href=mota.link;a.target='_blank';a.rel='noopener';a.style.marginTop='8px';cm.append(a)}}
+  else cm.append(el('div','small mut',lead.mota_interesse?lead.mota_interesse+' (não encontrada no stock atual)':'Ainda não se sabe qual é a mota.'));
+  L.append(cm);
+  // estado
+  const ce=el('div','cx');ce.append(el('h3','','Estado'));const et=el('div','etapas');
+  [['novo','Novo'],['em_curso','Em curso'],['visita_marcada','Visita marcada'],['vendida','Vendida'],['perdida','Perdida']].forEach(([k,t],i)=>{
+    const b=el('button','etapa'+(lead.estado===k?' on':''));b.append(el('span','n',String(i+1)),t);
+    b.onclick=async()=>{await api('/api/leads/'+id,{method:'PATCH',body:JSON.stringify({estado:k})});dados.lead.estado=k;const r=leads.find(x=>x.id===id);if(r)r.estado=k;renderLado();renderLista()};et.append(b)});
+  ce.append(et);L.append(ce);
+  // retoma
+  if(lead.retoma||lead.classificacao==='retoma'||verRetoma){
+    const rc=el('div','cx ret');rc.id='cx-retoma';rc.append(el('h3','','Retoma: o que respondemos?'));
+    const mc=el('input');mc.placeholder='Mota do cliente (ex.: Kawasaki KSF400)';mc.setAttribute('aria-label','Mota do cliente');
+    const msg=el('div','small mut');
+    const fazer=async(corpo,b)=>{if(sujo&&!confirm('Substituir o rascunho atual?'))return;msg.className='small mut';msg.textContent='A preparar…';if(b)b.disabled=true;
+      try{await post('/api/leads/'+id+'/retoma',{...corpo,mota_cliente:mc.value});sujo=false;await abre(id,{silencioso:true})}catch(e){msg.textContent='Erro: '+e.message;msg.className='small err';if(b)b.disabled=false}};
+    const vb=el('div','vbtns');vb.style.marginTop='8px';
+    [['anunciada','Perguntar se está anunciada'],['dados','Temos interesse: pedir dados'],['recusar','Não temos interesse']].forEach(([a,t])=>{const b=el('button','btn sec sm',t);b.onclick=()=>fazer({acao:a},b);vb.append(b)});
+    const vx=el('input');vx.placeholder='Valor da retoma (€)';vx.inputMode='decimal';
+    const vp=el('input');vp.placeholder='Preço da nossa mota (€)';vp.inputMode='decimal';if(mota&&mota.preco)vp.value=mota.preco;
+    const acx=el('div','small');acx.style.margin='6px 0';
+    const calc=()=>{const n=v=>Number(String(v).replace(/[^\d,]/g,'').replace(',','.'));const x=n(vx.value),p=n(vp.value);if(!x||!p){acx.textContent='';return}const y=p-x;const e=v=>String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'€';acx.textContent=y>0?'Acerto: '+e(y)+' da parte do cliente':y<0?'Acerto: '+e(-y)+' da nossa parte':'Troca direta, sem acerto'};
+    vx.oninput=calc;vp.oninput=calc;calc();
+    const b4=el('button','btn sm','Preparar proposta');b4.onclick=()=>fazer({acao:'proposta',valor:vx.value,preco:vp.value},b4);
+    rc.append(mc,vb,el('label','','Proposta'),vx,el('div','',''),vp,acx,b4,msg);
+    vp.style.marginTop='6px';
+    L.append(rc);
+  }
+  // contacto
+  const cc=el('div','cx');cc.append(el('h3','','Cliente'));
+  [['Nome',lead.nome],['Telefone',lead.telefone],['Quer ver',lead.quando_quer_ver],['Financiamento',lead.financiamento?'sim':null],['Classificação',lead.classificacao]].filter(x=>x[1]).forEach(([k,v])=>{const r=el('div','kv');r.append(el('span','',k),el('span','',v));cc.append(r)});
+  const w=telWa(lead.telefone);if(w){const a=el('a','btn sec sm','Abrir WhatsApp ↗');a.href='https://wa.me/'+w;a.target='_blank';a.rel='noopener';a.style.marginTop='8px';cc.append(a)}
+  const lo=linkOlx();if(lo){const a=el('a','btn sec sm','Ver conversa no OLX ↗');a.href=lo;a.target='_blank';a.rel='noopener';a.style.marginTop='8px';a.style.marginLeft=w?'6px':'0';cc.append(a)}
+  L.append(cc);
+  // juntar
+  const jn=el('div','cx');jn.append(el('h3','','Mesmo cliente noutra lead?'));
+  jn.append(el('div','small mut','Ex.: começou no OLX e passou para o WhatsApp. Juntar passa a conversa toda para aqui e apaga a outra.'));
+  const juntar=async(outro,nome)=>{if(!confirm('Juntar "'+(nome||'Cliente #'+outro)+'" a esta lead? A conversa passa para aqui e a outra lead deixa de existir.'))return;
+    try{await post('/api/leads/'+id+'/juntar',{com:outro});await carregaLista();abre(id,{silencioso:true})}catch(e){alert(e.message)}};
+  const sgw=el('div');jn.append(sgw);
+  const sj=el('select');sj.style.marginTop='8px';const z=el('option','','— escolher outra lead —');z.value='';sj.append(z);sj.setAttribute('aria-label','Outra lead');
+  leads.filter(r=>r.id!==id).forEach(r=>{const o=el('option','',[nomeLead(r),r.canais||r.canal,r.mota_interesse].filter(Boolean).join(' · '));o.value=r.id;o.dataset.nome=r.nome||'';sj.append(o)});
+  const bj=el('button','btn sec sm','Juntar');bj.style.marginTop='6px';bj.onclick=()=>{if(sj.value)juntar(Number(sj.value),sj.selectedOptions[0].dataset.nome)};
+  jn.append(sj,bj);L.append(jn);
+  // apagar
+  const ap=el('button','btn lnk','Apagar lead');ap.style.alignSelf='flex-start';
+  ap.onclick=async()=>{if(!confirm('Apagar esta lead e toda a conversa? Não dá para desfazer.'))return;try{await api('/api/leads/'+id,{method:'DELETE'});sujo=false;fechaLead();carregaLista()}catch(e){alert(e.message)}};
+  L.append(ap);
+  try{const sg=await api('/api/leads/'+id+'/sugestoes');if(!dados||dados.lead.id!==id)return;
+    sg.forEach(s=>{const r=el('div','');r.style.margin='8px 0';
+      r.append(el('div','small',(s.nome||s.telefone||'Cliente #'+s.id)+' · '+canalNome(s.canal)+(s.mota_interesse?' · '+s.mota_interesse:'')));
+      r.append(el('div','small mut',s.motivos.join(', ')));
+      const b=el('button','btn sm','Juntar esta');b.style.marginTop='4px';b.onclick=()=>juntar(s.id,s.nome);r.append(b);sgw.append(r)});
+    if(sg.length){jn.style.borderColor='var(--acc)';jn.querySelector('h3').textContent='⚠ Pode ser o mesmo cliente'}}catch{}
+}
+
+/* ---------------- motas (selects) ---------------- */
+function preencheMotas(sel){const v=sel.value;while(sel.options.length>1)sel.remove(1);
+  stock.forEach(r=>{const o=el('option','',[r.modelo,r.mes_ano,r.km&&r.km+' km',r.preco?eur(r.preco):'sem preço'].filter(Boolean).join(' · '));o.value=r.id;sel.append(o)});sel.value=v||''}
+
+/* ---------------- nova mensagem ---------------- */
+function abreNova(){
+  preencheMotas($('#n-mota'));
+  const sel=$('#n-lead');while(sel.options.length>1)sel.remove(1);
+  leads.filter(r=>!['vendida','perdida'].includes(r.estado)).forEach(r=>{const o=el('option','',[nomeLead(r),r.mota_interesse,canalNome(r.canal)].filter(Boolean).join(' · '));o.value=r.id;sel.append(o)});
+  sel.value='';$('#n-novo').classList.remove('hide');$('#n-msg').textContent='';
+  $('#j-nova').classList.remove('hide');$('#n-texto').focus();
+}
+const fechaNova=()=>$('#j-nova').classList.add('hide');
+$('#b-nova').onclick=abreNova;$('#fab').onclick=abreNova;$('#n-fechar').onclick=fechaNova;
+$('#j-nova').onclick=e=>{if(e.target===$('#j-nova'))fechaNova()};
+$('#n-lead').onchange=()=>$('#n-novo').classList.toggle('hide',!!$('#n-lead').value);
 $('#n-ok').onclick=async()=>{
   const b=$('#n-ok'),m=$('#n-msg');if(!$('#n-texto').value.trim()){m.textContent='Cola a mensagem.';return}
   b.disabled=true;m.className='small mut';m.textContent='A preparar…';
-  try{const r=await api('/api/mensagens',{method:'POST',body:JSON.stringify({canal:$('#n-canal').value,lead_id:$('#n-lead').value||null,mota_id:$('#n-mota').value||null,nome:$('#n-nome').value.trim()||null,telefone:$('#n-tel').value.trim()||null,texto:$('#n-texto').value})});
-    if(r.erro){m.textContent='Erro: '+r.erro;m.className='small err';b.disabled=false;return}
-    $('#n-texto').value='';$('#n-lead').value='';$('#n-novo').classList.remove('hide');$('#n-nome').value='';$('#n-tel').value='';m.textContent='';m.className='small mut';b.disabled=false;
-    document.querySelector('[data-v=leads]').click();abre(r.lead_id)}
+  try{const r=await post('/api/mensagens',{canal:$('#n-canal').value,lead_id:$('#n-lead').value||null,mota_id:$('#n-mota').value||null,nome:$('#n-nome').value.trim()||null,telefone:$('#n-tel').value.trim()||null,texto:$('#n-texto').value});
+    b.disabled=false;
+    if(r.erro){m.textContent='Erro: '+r.erro;m.className='small err';return}
+    $('#n-texto').value='';$('#n-nome').value='';$('#n-tel').value='';m.textContent='';fechaNova();
+    await carregaLista();sujo=false;abre(r.lead_id)}
   catch(e){m.textContent='Erro: '+e.message;m.className='small err';b.disabled=false}
 };
-async function carregaStock(){
-  const l=$('#s-lista');l.replaceChildren();const rows=await api('/api/stock');
-  l.append(el('p','small mut',rows.length+' motas no stock'));
-  rows.forEach(r=>{const c=el('div','card small',[r.modelo,r.mes_ano,r.km&&r.km+' km',r.preco&&r.preco+' €',r.estado].filter(Boolean).join(' · '));
-    if(!r.preco){const t=el('span','tag quente','sem preço');t.style.marginLeft='8px';c.append(t)}
-    if(r.matricula){const m=el('span','mut',' · '+r.matricula);c.append(m)}
+
+/* ---------------- topo e lista: eventos ---------------- */
+let tq;$('#q').oninput=e=>{clearTimeout(tq);tq=setTimeout(()=>{q=e.target.value;if(q.trim()&&tab==='novas')tab='todas';renderLista()},150)};
+$('#f-mota').onchange=()=>{fMota=$('#f-mota').value;renderLista()};
+$('#b-vistas').onclick=async()=>{await post('/api/leads/visto-todas');carregaLista()};
+async function atualizarAgora(){
+  const b=$('#b-atualizar');b.disabled=true;b.textContent='A atualizar…';
+  try{if(olx&&olx.ligado)await post('/api/olx/sync?esperar=1')}catch{}
+  try{await carregaLista()}catch{}
+  b.disabled=false;b.textContent='↻ Atualizar';
+}
+$('#b-atualizar').onclick=atualizarAgora;
+$('#olx-pill').onclick=()=>{if(olx&&olx.ligado&&!olx.erro)atualizarAgora();else{abreDef('olx')}};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#j-nova').classList.contains('hide'))fechaNova();else $('#lado').classList.remove('aberto')}});
+
+/* ---------------- definições ---------------- */
+function abreDef(sub){
+  $('#app').classList.add('hide');$('#fab').classList.add('hide');$('#pag-def').classList.remove('hide');
+  mostraDef(sub||'stock');
+}
+function mostraDef(s){
+  document.querySelectorAll('#def-tabs .tab').forEach(b=>b.classList.toggle('on',b.dataset.d===s));
+  ['stock','instr','olx','dados'].forEach(k=>$('#d-'+k).classList.toggle('hide',k!==s));
+  if(s==='stock')carregaStockPag();if(s==='instr')carregaConfig();if(s==='olx')estadoOlx();
+}
+document.querySelectorAll('#def-tabs .tab').forEach(b=>b.onclick=()=>mostraDef(b.dataset.d));
+$('#b-def').onclick=()=>{if($('#pag-def').classList.contains('hide'))abreDef();else $('#def-voltar').click()};
+$('#def-voltar').onclick=()=>{$('#pag-def').classList.add('hide');$('#app').classList.remove('hide');$('#fab').classList.remove('hide');carregaStockCache().then(()=>{if(dados){renderLado()}});carregaLista()};
+async function carregaStockPag(){
+  const l=$('#s-lista');l.replaceChildren();await carregaStockCache();
+  l.append(el('strong','',stock.length+' motas no stock'));
+  stock.forEach(r=>{const c=el('div','stk',[r.modelo,r.mes_ano,r.km&&r.km+' km',r.preco&&eur(r.preco),r.estado].filter(Boolean).join(' · '));
+    if(r.matricula)c.append(el('span','mut',' · '+r.matricula));
+    if(!r.preco){const t=el('span','marc alerta','sem preço');t.style.marginLeft='8px';c.append(t)}
+    if(r.link){const a=el('a','small','anúncio ↗');a.href=r.link;a.target='_blank';a.rel='noopener';a.style.marginLeft='8px';c.append(a)}
     l.append(c)});
   estadoSync();
 }
@@ -293,26 +622,10 @@ async function estadoSync(){
     e.append(el('div','mut',i.ultima_ok?'Última sincronização: '+new Date(i.ultima_ok).toLocaleString('pt-PT'):'Ainda sem sincronização'));
     if(i.erro)e.append(el('div','err','Erro: '+i.erro))}catch{}
 }
-async function carregaMotas(sel,atual){
-  try{const rows=await api('/api/stock');const v=sel.value;
-    while(sel.options.length>1)sel.remove(1);
-    rows.forEach(r=>{const o=el('option','',[r.modelo,r.mes_ano,r.km&&r.km+' km',r.preco?r.preco+' €':'sem preço'].filter(Boolean).join(' · '));o.value=r.id;sel.append(o)});
-    sel.value=v||atual||''}catch{}
-}
-async function carregaClientes(){
-  const sel=$('#n-lead');
-  try{const rows=await api('/api/leads');const v=sel.value;
-    while(sel.options.length>1)sel.remove(1);
-    rows.filter(r=>!['vendida','perdida'].includes(r.estado)).forEach(r=>{const o=el('option','',[r.nome||r.telefone||('Cliente #'+r.id),r.mota_interesse,r.canal].filter(Boolean).join(' · '));o.value=r.id;sel.append(o)});
-    sel.value=[...sel.options].some(o=>o.value===v)?v:''}catch{}
-  $('#n-novo').classList.toggle('hide',!!sel.value);
-}
-$('#f-mota').onchange=()=>{fMota=$('#f-mota').value;voltar()};
-$('#n-lead').onchange=()=>$('#n-novo').classList.toggle('hide',!!$('#n-lead').value);
 async function estadoOlx(){
   const e=$('#olx-estado');e.replaceChildren();
-  try{const s=await api('/api/olx');
-    if(!s.configurado){e.append(el('div','err','Falta configurar OLX_CLIENT_ID e OLX_CLIENT_SECRET no Railway.'));$('#olx-ligar').classList.add('hide');$('#olx-sync').classList.add('hide');$('#olx-desligar').classList.add('hide');return}
+  try{const s=await api('/api/olx');olx=s;pill();
+    if(!s.configurado){e.append(el('div','err','Falta configurar OLX_CLIENT_ID e OLX_CLIENT_SECRET no Railway.'));['#olx-ligar','#olx-sync','#olx-desligar'].forEach(x=>$(x).classList.add('hide'));return}
     $('#olx-ligar').classList.toggle('hide',s.ligado);$('#olx-sync').classList.toggle('hide',!s.ligado);$('#olx-desligar').classList.toggle('hide',!s.ligado);
     e.append(el('div','',s.ligado?'✓ Ligado ao OLX':'Ainda não ligado. Clica em "Ligar ao OLX" e autoriza com a conta do stand.'));
     if(s.a_correr)e.append(el('div','mut','A sincronizar…'));
@@ -321,10 +634,9 @@ async function estadoOlx(){
     if(s.erro)e.append(el('div','err','Erro: '+s.erro));
   }catch(x){e.append(el('div','err','Erro: '+x.message))}
 }
-$('#olx-sync').onclick=async()=>{await api('/api/olx/sync',{method:'POST'});estadoOlx();setTimeout(estadoOlx,5000)};
-$('#olx-desligar').onclick=async()=>{if(!confirm('Desligar o OLX? As conversas já importadas ficam na app.'))return;await api('/api/olx/desligar',{method:'POST'});estadoOlx()};
+$('#olx-sync').onclick=async()=>{await post('/api/olx/sync');estadoOlx();setTimeout(estadoOlx,5000)};
+$('#olx-desligar').onclick=async()=>{if(!confirm('Desligar o OLX? As conversas já importadas ficam na app.'))return;await post('/api/olx/desligar');estadoOlx()};
 async function carregaConfig(){
-  estadoOlx();
   try{const c=await api('/api/config');$('#c-instr').value=c.instrucoes||'';$('#c-tel').value=c.telefone_stand||'';$('#c-ass').value=c.assinatura_olx||''}catch(e){$('#c-msg').textContent='Erro: '+e.message}
 }
 $('#c-ok').onclick=async()=>{const m=$('#c-msg');m.className='small mut';m.textContent='A guardar…';
@@ -332,28 +644,25 @@ $('#c-ok').onclick=async()=>{const m=$('#c-msg');m.className='small mut';m.textC
   catch(e){m.textContent='Erro: '+e.message;m.className='small err'}};
 $('#i-ok').onclick=async()=>{const f=$('#i-file').files[0],m=$('#i-msg');m.className='small mut';if(!f){m.textContent='Escolhe um ficheiro.';return}
   try{let d=JSON.parse(await f.text());if(Array.isArray(d))d={conversas:d};
-    const r=await api('/api/importar',{method:'POST',body:JSON.stringify({conversas:d.conversas})});
+    const r=await post('/api/importar',{conversas:d.conversas});
     m.textContent=r.leads_novas+' leads novas, '+r.leads_atualizadas+' atualizadas, '+r.mensagens_novas+' mensagens'+(r.erros.length?' · '+r.erros.length+' com erro':'')+' ✓'}
   catch(e){m.textContent='Erro: '+(e instanceof SyntaxError?'o ficheiro não é JSON válido':e.message);m.className='small err'}};
-$('#sync-ok').onclick=async()=>{const b=$('#sync-ok'),m=$('#sync-msg');b.disabled=true;m.textContent='A sincronizar…';
-  try{const r=await api('/api/sync',{method:'POST'});m.textContent=r.motas+' motas ✓';carregaStock()}
+$('#sync-ok').onclick=async()=>{const b=$('#sync-ok'),m=$('#sync-msg');b.disabled=true;m.className='small mut';m.textContent='A sincronizar…';
+  try{const r=await post('/api/sync');m.textContent=r.motas+' motas ✓';carregaStockPag()}
   catch(e){m.textContent='Erro: '+e.message;m.className='small err'}b.disabled=false};
 $('#p-ok').onclick=async()=>{const f=$('#p-file').files[0],m=$('#p-msg');if(!f){m.textContent='Escolhe um ficheiro.';return}
-  try{const r=await api('/api/precos',{method:'POST',body:await f.text()});m.textContent=r.importados+' preços carregados ✓';m.className='small mut';carregaStock()}
+  try{const r=await api('/api/precos',{method:'POST',body:await f.text(),headers:{'content-type':'text/csv'}});m.textContent=r.importados+' preços carregados ✓';m.className='small mut';carregaStockPag()}
   catch(e){m.textContent='Erro: '+e.message;m.className='small err'}};
-$('#s-ok').onclick=async()=>{
-  const f=$('#s-file').files[0],m=$('#s-msg');if(!f){m.textContent='Escolhe um ficheiro.';return}
-  try{const r=await api('/api/stock',{method:'POST',body:await f.text()});m.textContent=r.importadas+' motas carregadas ✓';m.className='small mut';carregaStock()}
-  catch(e){m.textContent='Erro: '+e.message;m.className='small err'}
-};
-async function atualizarAgora(){
-  try{const s=await api('/api/olx');if(s.ligado){const b=document.querySelector('#filtros .chip');if(b)b.textContent='↻ A atualizar…';await api('/api/olx/sync?esperar=1',{method:'POST'})}}catch{}
-  if(atual==null)voltar();
-}
-// Atualiza a lista sozinha a cada minuto (só quando está a ver a lista, sem nada aberto).
-setInterval(()=>{if(atual==null&&!$('#v-leads').classList.contains('hide')&&!document.hidden)voltar()},60000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&atual==null&&!$('#v-leads').classList.contains('hide'))voltar()});
-voltar();
+$('#s-ok').onclick=async()=>{const f=$('#s-file').files[0],m=$('#s-msg');if(!f){m.textContent='Escolhe um ficheiro.';return}
+  try{const r=await api('/api/stock',{method:'POST',body:await f.text(),headers:{'content-type':'text/csv'}});m.textContent=r.importadas+' motas carregadas ✓';m.className='small mut';carregaStockPag()}
+  catch(e){m.textContent='Erro: '+e.message;m.className='small err'}};
+
+/* ---------------- arranque e atualização automática ---------------- */
+const vivo=()=>!document.hidden&&!$('#app').classList.contains('hide');
+setInterval(()=>{if(vivo())carregaLista().catch(()=>{})},60000);
+document.addEventListener('visibilitychange',()=>{if(vivo())carregaLista().catch(()=>{})});
+window.addEventListener('beforeunload',e=>{if(sujo){e.preventDefault();e.returnValue=''}});
+carregaStockCache().then(()=>carregaLista()).catch(e=>{$('#lista').replaceChildren(el('div','vazio err','Erro ao carregar: '+e.message))});
 </script>
 </body>
 </html>
