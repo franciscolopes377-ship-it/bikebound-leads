@@ -79,6 +79,13 @@ for (const l of db.prepare("SELECT id, telefone FROM leads WHERE telefone IS NOT
 // Marca como visto até à última mensagem do cliente (mesmo que o relógio do OLX esteja uns segundos à frente).
 export const VISTO_AGORA = "MAX(CURRENT_TIMESTAMP, COALESCE((SELECT MAX(criado_em) FROM mensagens WHERE lead_id=leads.id AND direcao='inbound'), ''))";
 
+// Aviso à equipa deixa de fazer sentido quando já foi enviada uma resposta depois da última mensagem do cliente.
+export function limparAlertasRespondidos(leadId = null) {
+  db.prepare(`UPDATE leads SET alertar=0 WHERE alertar=1 ${leadId != null ? 'AND id=?' : ''}
+    AND (SELECT MAX(criado_em) FROM mensagens WHERE lead_id=leads.id AND direcao='outbound' AND estado='enviada')
+        >= COALESCE((SELECT MAX(criado_em) FROM mensagens WHERE lead_id=leads.id AND direcao='inbound'), '')`).run(...(leadId != null ? [leadId] : []));
+}
+
 export const getConfig = chave => db.prepare('SELECT valor FROM config WHERE chave=?').get(chave)?.valor ?? null;
 export const setConfig = (chave, valor) => db.prepare('INSERT INTO config (chave, valor) VALUES (?,?) ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor').run(chave, valor);
 

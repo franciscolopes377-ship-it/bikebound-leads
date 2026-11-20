@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { timingSafeEqual, createHmac, createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { db, getConfig, setConfig, VISTO_AGORA } from './db.js';
+import { db, getConfig, setConfig, VISTO_AGORA, limparAlertasRespondidos } from './db.js';
 import { importStock, importPrecos, getStock } from './stock.js';
 import { syncStock, syncStatus, startAutoSync } from './sync.js';
 import { processInbound, registarSemResposta } from './leads.js';
@@ -153,6 +153,7 @@ async function api(req, res, url) {
   if (M === 'POST' && p === '/api/olx/desligar') { desligar(); return send(res, 200, olxStatus()); }
 
   if (M === 'GET' && p === '/api/leads') {
+    limparAlertasRespondidos();
     const c = url.searchParams.get('classificacao');
     const rows = db.prepare(`SELECT l.*,
         (SELECT COUNT(*) FROM mensagens m WHERE m.lead_id=l.id AND m.estado='rascunho') AS rascunhos,
@@ -234,6 +235,7 @@ async function api(req, res, url) {
       db.prepare("UPDATE mensagens SET estado='enviada', texto=?, texto_original=?, aviso=?, externo_id=COALESCE(?, externo_id), criado_em=CURRENT_TIMESTAMP WHERE id=?")
         .run(texto, original, texto !== msg.texto ? null : msg.aviso, ext, msg.id);
       db.prepare("UPDATE leads SET estado=CASE WHEN estado='novo' THEN 'em_curso' ELSE estado END, atualizado_em=CURRENT_TIMESTAMP WHERE id=?").run(lead.id);
+      limparAlertasRespondidos(lead.id);
       return send(res, 200, { ok: true });
     } finally { aEnviar.delete(msg.id); }
   }
@@ -248,6 +250,7 @@ async function api(req, res, url) {
     const original = msg.texto_original ?? (novo !== msg.texto ? msg.texto : null);
     db.prepare('UPDATE mensagens SET estado=?, texto=?, texto_original=?, aviso=? WHERE id=?')
       .run(b.estado, novo, original, novo !== msg.texto ? null : msg.aviso, m[1]);
+    if (b.estado === 'enviada') limparAlertasRespondidos(msg.lead_id);
     return send(res, 200, { ok: true });
   }
 

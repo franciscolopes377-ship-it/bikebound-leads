@@ -358,6 +358,10 @@ assert.equal((await post('/api/importar', { conversas: conv }, { headers: { 'sec
   st.threads[0].total_count = 6; await syncOlx({ pausa: 0 });
   r = await j('/api/leads/' + carla.id); assert.equal(r.b.mensagens.filter(m => m.texto === 'Combinado, até sábado!').length, 1); assert.equal(r.b.mensagens.find(m => m.id === rcE.id).estado, 'enviada');
   ok('OLX: enviar rascunho pela API (texto editado), não envia duas vezes, não duplica na sincronização');
+  r = await post('/api/mensagens', { canal: 'whatsapp', nome: 'Alerta', texto: 'Posso ir ver a mota sábado?' }); assert.equal(r.b.alertar_equipa, true);
+  const la = r.b.lead_id; assert.equal((await j('/api/leads')).b.find(l => l.id === la).alertar, 1);
+  await post(`/api/mensagens/${r.b.rascunho_id}/estado`, { estado: 'enviada' }); assert.equal((await j('/api/leads')).b.find(l => l.id === la).alertar, 0);
+  ok('aviso à equipa desaparece quando já se respondeu ao cliente');
   r = await post('/api/mensagens', { canal: 'olx', nome: 'Manual', texto: 'Olá, tem a MT-07?' }); r = await post(`/api/mensagens/${r.b.rascunho_id}/enviar`, {}); assert.equal(r.s, 400); assert.match(r.b.erro, /colada à mão/); ok('OLX: conversa colada à mão não envia pela API');
 
   r = await j('/api/olx/desligar', { method: 'POST' }); assert.equal(r.b.ligado, false); assert.equal((await j('/api/olx/sync', { method: 'POST' })).s, 200);
