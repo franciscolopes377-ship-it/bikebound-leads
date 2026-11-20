@@ -112,7 +112,7 @@ label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
         <button class="btn sec" id="olx-sync">Sincronizar agora</button>
         <button class="btn sec" id="olx-desligar">Desligar</button>
       </div>
-      <p class="small mut">Lê as conversas das motas em stock a cada 5 minutos e prepara rascunhos para as mensagens novas. Não envia nada aos clientes.</p>
+      <p class="small mut">Lê as conversas das motas em stock a cada 2 minutos e prepara rascunhos para as mensagens novas. Não envia nada aos clientes.</p>
     </div>
     <div class="card">
       <strong>Importar conversas</strong>
@@ -149,32 +149,49 @@ function filtros(){
 }
 async function voltar(){
   atual=null;$('#ficha').classList.add('hide');$('#lista').classList.remove('hide');$('#filtros').classList.remove('hide');$('#f-mota').classList.remove('hide');
-  filtros();const l=$('#lista');l.replaceChildren();
-  const todas=await api('/api/leads');
+  filtros();const l=$('#lista');
+  const [todas,olx]=await Promise.all([api('/api/leads'),api('/api/olx').catch(()=>null)]);
+  l.replaceChildren();
   // interessados por mota
   const cont={};todas.forEach(r=>{if(r.mota_interesse)cont[r.mota_interesse]=(cont[r.mota_interesse]||0)+1});
   const sm=$('#f-mota');while(sm.options.length>1)sm.remove(1);
   Object.entries(cont).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).forEach(([k,n])=>{const o=el('option','',k+' ('+n+')');o.value=k;sm.append(o)});
   if(fMota&&!cont[fMota])fMota='';sm.value=fMota;
-  const rows=todas.filter(r=>(!filtro||(filtro==='tratar'?(r.alertar||r.rascunhos):r.classificacao===filtro))&&(!fMota||r.mota_interesse===fMota));
-  const ult=$('#ult-atual');if(ult)ult.textContent='Atualizado às '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
-  const cab=el('p','small mut',rows.length+(rows.length===1?' lead':' leads')+' · mais recentes primeiro · ');cab.append(el('span','','')); cab.lastChild.id='ult-atual'; cab.lastChild.textContent='Atualizado às '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}); l.append(cab);
+  // estado da ligação ao OLX
+  const hora=d=>new Date(d).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+  const est=el('p','small mut');
+  est.textContent='Página atualizada às '+hora(Date.now())+(olx&&olx.ligado?(' · OLX verificado às '+(olx.ultima_sync?hora(olx.ultima_sync):'—')):' · OLX não ligado');
+  l.append(est);
+  if(olx&&olx.erro)l.append(el('div','alert','Erro na ligação ao OLX: '+olx.erro));
+  // quadro de mensagens novas
+  const novas=todas.filter(r=>r.novas>0);
+  if(novas.length){
+    const q=el('div','card');q.style.borderColor='var(--acc)';q.style.borderWidth='2px';
+    const t=el('div','row');t.append(el('strong','','Mensagens novas ('+novas.length+')'));
+    const sp=el('span','sp');const mv=el('button','btn sec','Marcar todas como vistas');
+    mv.onclick=async e=>{e.stopPropagation();await api('/api/leads/visto-todas',{method:'POST'});voltar()};
+    t.append(sp,mv);q.append(t);novas.forEach(r=>q.append(cartao(r,true)));l.append(q);
+  }
+  const rows=todas.filter(r=>!(r.novas>0)&&(!filtro||(filtro==='tratar'?(r.alertar||r.rascunhos):r.classificacao===filtro))&&(!fMota||r.mota_interesse===fMota));
+  l.append(el('p','small mut',rows.length+(rows.length===1?' lead':' leads')+' · mais recentes primeiro'));
   if(!rows.length)l.append(el('p','mut',todas.length?'Nenhuma lead com estes filtros.':'Ainda sem leads.'));
-  rows.forEach(r=>{
-    const c=el('div','card lead');
-    const top=el('div','row');
-    top.append(el('strong','',r.nome||r.telefone||('Cliente #'+r.id)),el('span','tag '+r.classificacao,r.classificacao));(r.canais||r.canal).split(',').forEach(c=>top.append(el('span','tag mut',c)));
-    if(r.alertar)top.append(el('span','tag quente','⚠ avisar equipa'));
-    if(r.rascunhos)top.append(el('span','tag','✎ '+r.rascunhos+' rascunho'));
-    if(r.origem==='importada')top.append(el('span','tag mut','importada'));
-    c.append(top);
-    if(r.resumo_equipa)c.append(el('div','small',r.resumo_equipa));
-    if(r.ultima){const u=el('div','small',(r.ultima.length>110?r.ultima.slice(0,110)+'…':r.ultima));u.style.margin='2px 0';c.append(u)}
-    c.append(el('div','small mut',(r.mota_interesse?r.mota_interesse+' · ':'')+'estado: '+r.estado.replace('_',' ')+((r.ultima_cliente_em||r.atualizado_em)?' · '+dataPt(r.ultima_cliente_em||r.atualizado_em):'')));
-    c.onclick=()=>abre(r.id);l.append(c)});
+  rows.forEach(r=>l.append(cartao(r,false)));
+}
+function cartao(r,nova){
+  const c=el('div','card lead');if(nova){c.style.margin='8px 0 0'}
+  const top=el('div','row');
+  top.append(el('strong','',r.nome||r.telefone||('Cliente #'+r.id)),el('span','tag '+r.classificacao,r.classificacao));(r.canais||r.canal).split(',').forEach(x=>top.append(el('span','tag mut',x)));
+  if(nova)top.append(el('span','tag quente',r.novas+(r.novas===1?' nova':' novas')));
+  if(r.alertar)top.append(el('span','tag quente','⚠ avisar equipa'));
+  if(r.rascunhos)top.append(el('span','tag','✎ rascunho'));
+  c.append(top);
+  // só a mensagem do cliente
+  if(r.ultima){const u=el('div','',(r.ultima.length>160?r.ultima.slice(0,160)+'…':r.ultima));u.style.margin='4px 0';c.append(u)}
+  c.append(el('div','small mut',(r.mota_interesse?r.mota_interesse+' · ':'')+'estado: '+r.estado.replace('_',' ')+((r.ultima_cliente_em||r.atualizado_em)?' · '+dataPt(r.ultima_cliente_em||r.atualizado_em):'')));
+  c.onclick=()=>abre(r.id);return c;
 }
 async function abre(id){
-  atual=id;const {lead,mensagens,ultimo_canal}=await api('/api/leads/'+id);
+  atual=id;const {lead,mensagens,ultimo_canal}=await api('/api/leads/'+id+'?visto=1');
   const variosCanais=new Set(mensagens.map(m=>m.canal)).size>1;
   $('#lista').classList.add('hide');$('#filtros').classList.add('hide');$('#f-mota').classList.add('hide');
   const f=$('#ficha');f.classList.remove('hide');f.replaceChildren();
@@ -335,6 +352,7 @@ async function atualizarAgora(){
 }
 // Atualiza a lista sozinha a cada minuto (só quando está a ver a lista, sem nada aberto).
 setInterval(()=>{if(atual==null&&!$('#v-leads').classList.contains('hide')&&!document.hidden)voltar()},60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&atual==null&&!$('#v-leads').classList.contains('hide'))voltar()});
 voltar();
 </script>
 </body>

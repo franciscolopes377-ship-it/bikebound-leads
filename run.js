@@ -322,7 +322,7 @@ assert.equal((await post('/api/importar', { conversas: conv }, { headers: { 'sec
   let s1; try { s1 = await syncOlx({ pausa: 0 }); } catch (e) { s1 = await syncOlx({ pausa: 0 }); } // a do callback pode estar a correr
   await new Promise(r => setTimeout(r, 200));
   assert.ok(st.pedidos.every(p => p.version === '2.0' && /^Bearer acc/.test(p.auth) && !p.ctype));
-  r = await j('/api/leads'); const carla = r.b.find(l => l.nome === 'Carla'); assert.ok(carla); assert.match(carla.mota_interesse, /Yamaha MT-07/); assert.equal(carla.rascunhos, 0); assert.equal(carla.alertar, 0);
+  r = await j('/api/leads'); const carla = r.b.find(l => l.nome === 'Carla'); assert.ok(carla); assert.match(carla.mota_interesse, /Yamaha MT-07/); assert.equal(carla.rascunhos, 0); assert.equal(carla.alertar, 0); assert.equal(carla.novas, 0); assert.equal(carla.origem, 'olx');
   assert.ok(!r.b.some(l => l.nome === 'Duarte' && l.id !== leadU3)); assert.ok(!r.b.some(l => (l.nome || '').startsWith('u2')));
   r = await j('/api/leads/' + leadU3); assert.equal(r.b.mensagens.length, 2); assert.equal(r.b.lead.estado, 'visita_marcada'); assert.ok(r.b.mensagens.every(m => /:m:m3/.test(m.externo_id)));
   ok('OLX: 1ª sincronização importa o histórico das motas em stock, ignora anúncios removidos, não duplica o que já foi importado, sem rascunhos');
@@ -332,15 +332,18 @@ assert.equal((await post('/api/importar', { conversas: conv }, { headers: { 'sec
   const nPed = st.pedidos.length; await syncOlx({ pausa: 0 }); assert.ok(st.pedidos.slice(nPed).every(p => p.path.startsWith('/api/partner/threads?'))); ok('OLX: sem novidades não volta a ler as conversas');
 
   // mensagem nova da Carla → rascunho + mota em causa
-  st.threads[0].total_count = 3; st.msgs['u1-aaa'].push({ uuid: 'm13', type: 'received', text: 'Posso ir ver no sábado?', created_at: iso(Date.now()) });
+  st.threads[0].total_count = 3; st.msgs['u1-aaa'].push({ uuid: 'm13', type: 'received', text: 'Posso ir ver no sábado?', created_at: iso(Date.now() + 1500) });
   const s3 = await syncOlx({ pausa: 0 }); assert.equal(s3.mensagens_novas, 1); assert.equal(s3.rascunhos, 1);
   r = await j('/api/leads/' + carla.id); const rc = r.b.mensagens.find(m => m.estado === 'rascunho'); assert.ok(rc && rc.canal === 'olx'); assert.equal(r.b.lead.classificacao, 'quente'); assert.equal(r.b.lead.alertar, 1); ok('OLX: mensagem nova do cliente → rascunho e aviso à equipa');
+  assert.equal((await j('/api/leads')).b.find(l => l.id === carla.id).novas, 1);
+  await j('/api/leads/' + carla.id); assert.equal((await j('/api/leads')).b.find(l => l.id === carla.id).novas, 1);
+  await j('/api/leads/' + carla.id + '?visto=1'); assert.equal((await j('/api/leads')).b.find(l => l.id === carla.id).novas, 0); ok('mensagens novas: contam até a equipa abrir a lead');
 
   // renovação do token
-  setConfig('olx_expira', String(Date.now() - 1000)); st.threads[0].total_count = 4; st.msgs['u1-aaa'].push({ uuid: 'm14', type: 'sent', text: 'Pode vir sábado às 10h.', created_at: iso(Date.now() + 1000) });
+  setConfig('olx_expira', String(Date.now() - 1000)); st.threads[0].total_count = 4; st.msgs['u1-aaa'].push({ uuid: 'm14', type: 'sent', text: 'Pode vir sábado às 10h.', created_at: iso(Date.now() + 2500) });
   await syncOlx({ pausa: 0 }); assert.equal(st.tokenPedidos.at(-1).grant_type, 'refresh_token'); assert.equal(st.tokenPedidos.at(-1).refresh_token, 'ref1');
   r = await j('/api/leads/' + carla.id); assert.ok(r.b.mensagens.some(m => m.texto === 'Pode vir sábado às 10h.' && m.estado === 'enviada')); assert.equal(r.b.mensagens.filter(m => m.estado === 'rascunho').length, 0); ok('OLX: token expirado é renovado; resposta dada no OLX entra na conversa e descarta o rascunho');
-  st.falhar401 = 1; st.threads[0].total_count = 5; st.msgs['u1-aaa'].push({ uuid: 'm15', type: 'received', text: 'Combinado', created_at: iso(Date.now() + 2000) });
+  st.falhar401 = 1; st.threads[0].total_count = 5; st.msgs['u1-aaa'].push({ uuid: 'm15', type: 'received', text: 'Combinado', created_at: iso(Date.now() + 3500) });
   const t0 = st.tokenPedidos.length; await syncOlx({ pausa: 0 }); assert.equal(st.tokenPedidos.length, t0 + 1); ok('OLX: 401 → renova o token e repete');
 
   r = await j('/api/olx/desligar', { method: 'POST' }); assert.equal(r.b.ligado, false); assert.equal((await j('/api/olx/sync', { method: 'POST' })).s, 200);
@@ -385,6 +388,14 @@ const mig = JSON.parse(saida); assert.equal(mig.tel, '911222333'); assert.equal(
   const xt = (await j('/api/leads')).b.find(l => l.nome === 'user123x').id;
   r = await post(`/api/leads/${xt}/retoma`, { acao: 'recusar' }); assert.match(r.b.texto, /^(Bom dia|Boa tarde|Boa noite), como está\?/); assert.match(r.b.texto, /vender a YAMAHA XT 600 a pronto pagamento\.\n/); assert.ok(!r.b.texto.includes('financiamento')); ok('retoma: motas de baixo valor sem financiamento; nome de utilizador não é usado');
 }
+
+// ---------- quadro de mensagens novas ----------
+await post('/api/importar', { conversas: [{ canal: 'olx', externo_id: 'vista-1', nome: 'Historico', mensagens: [{ direcao: 'inbound', texto: 'olá', data: '2026-11-01T10:00:00Z' }] }] });
+r = await j('/api/leads'); assert.equal(r.b.find(l => l.nome === 'Historico').novas, 0);
+r = await post('/api/mensagens', { canal: 'olx', nome: 'NovaPessoa', texto: 'Tem a mota?' }); const np = r.b.lead_id;
+assert.ok((await j('/api/leads')).b.find(l => l.id === np).novas >= 1);
+assert.equal((await post('/api/leads/visto-todas', {})).s, 200); assert.ok((await j('/api/leads')).b.every(l => l.novas === 0));
+assert.equal((await post('/api/leads/visto-todas', {}, { headers: { 'sec-fetch-site': 'cross-site' } })).s, 403); ok('mensagens novas: histórico importado não conta; marcar todas como vistas');
 
 // ---------- ordem da lista: mensagem mais recente do cliente primeiro ----------
 await post('/api/importar', { conversas: [{ canal: 'olx', externo_id: 'ord-velha', nome: 'Antiga', mensagens: [{ direcao: 'inbound', texto: 'olá', data: '2026-01-01T10:00:00Z' }] }] });

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { db, normTel } from './db.js';
+import { db, normTel, VISTO_AGORA } from './db.js';
 import { getStock } from './stock.js';
 import { telefoneNoTexto } from './juntar.js';
 
@@ -37,7 +37,7 @@ function valida(c) {
   return null;
 }
 
-export function importarConversas(conversas) {
+export function importarConversas(conversas, { marcarVisto = true } = {}) {
   if (!Array.isArray(conversas) || !conversas.length) throw Object.assign(new Error('Nada para importar: falta a lista "conversas"'), { status: 400 });
   if (conversas.length > MAX_CONVERSAS) throw Object.assign(new Error(`Máximo de ${MAX_CONVERSAS} conversas por importação`), { status: 400 });
   const stock = getStock();
@@ -64,6 +64,7 @@ export function importarConversas(conversas) {
         const r = db.prepare("INSERT INTO leads (canal, nome, telefone, telefone_norm, externo_id, origem, mota_interesse, criado_em) VALUES (?,?,?,?,?,'importada',?,COALESCE(?, CURRENT_TIMESTAMP))")
           .run(c.canal, str(c.nome, 120), str(c.telefone, 40) || tel || null, tel || null, ext, motaTxt, dataSql(primeira.data));
         lead = db.prepare('SELECT * FROM leads WHERE id=?').get(r.lastInsertRowid);
+        
       }
 
       let novas = 0, ultima = null;
@@ -96,6 +97,7 @@ export function importarConversas(conversas) {
           c.retoma ? 1 : 0, c.financiamento ? 1 : 0,
           ultima, ultima, nova ? 1 : 0, ultima, lead.id);
 
+      if (nova && marcarVisto) db.prepare(`UPDATE leads SET visto_em=${VISTO_AGORA} WHERE id=?`).run(lead.id);
       res.mensagens_novas += novas;
       (res.leads ||= []).push({ lead_id: lead.id, nova, novas });
       if (nova) res.leads_novas++; else if (novas) res.leads_atualizadas++; else res.conversas_sem_novidades++;

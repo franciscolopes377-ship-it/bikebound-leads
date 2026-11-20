@@ -53,6 +53,10 @@ addCol('mensagens', 'texto_original', 'TEXT');  // rascunho antes de ser editado
 addCol('leads', 'telefone_norm', 'TEXT');
 addCol('leads', 'externo_id', 'TEXT');           // id da conversa de origem (importações)
 addCol('leads', 'origem', 'TEXT');               // 'importada' quando veio de uma importação
+if (!colunas('leads').includes('visto_em')) {
+  db.exec('ALTER TABLE leads ADD COLUMN visto_em TEXT');   // quando a equipa abriu a lead pela última vez
+  db.exec('UPDATE leads SET visto_em=CURRENT_TIMESTAMP');  // ao atualizar, o que já existe conta como visto
+}
 addCol('stock_sync', 'preco', 'TEXT');           // preço anunciado vindo da BikeBound
 addCol('stock_sync', 'link', 'TEXT');            // link do anúncio vindo da BikeBound
 db.exec(`
@@ -71,6 +75,9 @@ export function normTel(t) {
 for (const l of db.prepare("SELECT id, telefone FROM leads WHERE telefone IS NOT NULL AND telefone_norm IS NULL").all()) {
   db.prepare('UPDATE leads SET telefone_norm=? WHERE id=?').run(normTel(l.telefone) || null, l.id);
 }
+
+// Marca como visto até à última mensagem do cliente (mesmo que o relógio do OLX esteja uns segundos à frente).
+export const VISTO_AGORA = "MAX(CURRENT_TIMESTAMP, COALESCE((SELECT MAX(criado_em) FROM mensagens WHERE lead_id=leads.id AND direcao='inbound'), ''))";
 
 export const getConfig = chave => db.prepare('SELECT valor FROM config WHERE chave=?').get(chave)?.valor ?? null;
 export const setConfig = (chave, valor) => db.prepare('INSERT INTO config (chave, valor) VALUES (?,?) ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor').run(chave, valor);

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { timingSafeEqual, createHmac, createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { db, getConfig, setConfig } from './db.js';
+import { db, getConfig, setConfig, VISTO_AGORA } from './db.js';
 import { importStock, importPrecos, getStock } from './stock.js';
 import { syncStock, syncStatus, startAutoSync } from './sync.js';
 import { processInbound, registarSemResposta } from './leads.js';
@@ -152,11 +152,13 @@ async function api(req, res, url) {
         (SELECT texto FROM mensagens m WHERE m.lead_id=l.id AND m.direcao='inbound' ORDER BY id DESC LIMIT 1) AS ultima,
         (SELECT GROUP_CONCAT(DISTINCT canal) FROM mensagens m WHERE m.lead_id=l.id) AS canais,
         (SELECT canal FROM mensagens m WHERE m.lead_id=l.id AND m.direcao='inbound' ORDER BY criado_em DESC, id DESC LIMIT 1) AS ultimo_canal,
-        (SELECT MAX(criado_em) FROM mensagens m WHERE m.lead_id=l.id AND m.direcao='inbound') AS ultima_cliente_em
+        (SELECT MAX(criado_em) FROM mensagens m WHERE m.lead_id=l.id AND m.direcao='inbound') AS ultima_cliente_em,
+        (SELECT COUNT(*) FROM mensagens m WHERE m.lead_id=l.id AND m.direcao='inbound' AND m.criado_em > COALESCE(l.visto_em, '')) AS novas
       FROM leads l ${c ? 'WHERE classificacao=?' : ''} ORDER BY COALESCE(ultima_cliente_em, l.atualizado_em) DESC, l.id DESC`).all(...(c ? [c] : []));
     return send(res, 200, rows);
   }
 
+  if (M === 'POST' && p === '/api/leads/visto-todas') { db.prepare(`UPDATE leads SET visto_em=${VISTO_AGORA}`).run(); return send(res, 200, { ok: true }); }
   if (M === 'GET' && (m = p.match(/^\/api\/leads\/(\d+)\/sugestoes$/))) return send(res, 200, sugestoes(m[1]));
   if (M === 'POST' && (m = p.match(/^\/api\/leads\/(\d+)\/juntar$/))) return send(res, 200, juntarLeads(m[1], (await json(req)).com));
   if (M === 'POST' && (m = p.match(/^\/api\/leads\/(\d+)\/retoma$/))) return send(res, 200, prepararRetoma(m[1], await json(req)));
@@ -165,6 +167,7 @@ async function api(req, res, url) {
     const id = m[1];
     const lead = db.prepare('SELECT * FROM leads WHERE id=?').get(id);
     if (!lead) return send(res, 404, { erro: 'Lead não encontrada' });
+    if (M === 'GET' && url.searchParams.get('visto') === '1') db.prepare(`UPDATE leads SET visto_em=${VISTO_AGORA} WHERE id=?`).run(id);
     if (M === 'GET') return send(res, 200, { lead, ultimo_canal: db.prepare("SELECT canal FROM mensagens WHERE lead_id=? AND direcao='inbound' ORDER BY criado_em DESC, id DESC LIMIT 1").get(id)?.canal || lead.canal, mensagens: db.prepare('SELECT * FROM mensagens WHERE lead_id=? ORDER BY criado_em, id').all(id) });
     if (M === 'DELETE') {
       db.exec('BEGIN');

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { db, getConfig, setConfig } from './db.js';
+import { db, getConfig, setConfig, VISTO_AGORA } from './db.js';
 import { getStock } from './stock.js';
 import { importarConversas } from './import.js';
 import { classificarConversa } from './classificar.js';
@@ -166,10 +166,13 @@ async function correr({ fetchImpl = fetch, pausa = 120, maxThreads = 3000, gerar
       // Classificação só para leads novas: nas existentes mantém-se o que a equipa ou o assistente definiram.
       const existe = db.prepare('SELECT 1 FROM leads WHERE externo_id=? UNION SELECT 1 FROM lead_externos WHERE externo_id=?').get('imp:olx:' + uuid, 'imp:olx:' + uuid);
       const cls = existe ? {} : classificarConversa(mensagens);
-      const r = importarConversas([{ canal: 'olx', externo_id: 'olx:' + uuid, nome, mota_id: mota.id, ...cls, mensagens }]);
+      const r = importarConversas([{ canal: 'olx', externo_id: 'olx:' + uuid, nome, mota_id: mota.id, ...cls, mensagens }], { marcarVisto: false });
       const info = r.leads?.[0];
       if (!info) continue;
-      db.prepare('UPDATE leads SET origem=COALESCE(origem, ?) WHERE id=?').run('olx', info.lead_id);
+      const ultimaIn = [...mensagens].reverse().find(m => m.direcao === 'inbound');
+      const novaDoCliente = info.novas > 0 && ultimaIn && Date.parse(ultimaIn.data) >= ligadoEm;
+      db.prepare("UPDATE leads SET origem=CASE WHEN origem IS NULL OR origem='importada' AND ? THEN 'olx' ELSE origem END WHERE id=?").run(info.nova ? 1 : 0, info.lead_id);
+      if (info.nova && !novaDoCliente) db.prepare(`UPDATE leads SET visto_em=${VISTO_AGORA} WHERE id=?`).run(info.lead_id); // histórico
       db.prepare('INSERT OR REPLACE INTO olx_threads (uuid, advert_id, interlocutor_id, total_count, lead_id, ignorada, visto_em) VALUES (?,?,?,?,?,0,CURRENT_TIMESTAMP)')
         .run(uuid, t.advert_id, t.interlocutor_id, t.total_count, info.lead_id);
       res.conversas_stock++; res.mensagens_novas += r.mensagens_novas; res.leads_novas += r.leads_novas;
